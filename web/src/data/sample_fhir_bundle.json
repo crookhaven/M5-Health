@@ -1,0 +1,124 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "name": [{ "given": ["Jordan"], "family": "Rivera" }],
+        "birthDate": "1985-04-12",
+        "gender": "female"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "status": "active",
+        "medicationCodeableConcept": { "text": "Lisinopril" },
+        "dosageInstruction": [
+          {
+            "doseAndRate": [{ "doseQuantity": { "value": 20, "unit": "mg" } }],
+            "timing": { "code": { "text": "Once daily" } },
+            "route": { "text": "Oral" }
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "status": "active",
+        "medicationCodeableConcept": { "text": "Lisinopril" },
+        "dosageInstruction": [
+          {
+            "doseAndRate": [{ "doseQuantity": { "value": 10, "unit": "mg" } }],
+            "timing": { "code": { "text": "Once daily" } },
+            "route": { "text": "Oral" }
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "status": "active",
+        "medicationCodeableConcept": { "text": "Atorvastatin" },
+        "dosageInstruction": [
+          {
+            "doseAndRate": [{ "doseQuantity": { "value": 40, "unit": "mg" } }],
+            "route": { "text": "Oral" }
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "code": { "text": "Penicillin" },
+        "reaction": [{ "manifestation": [{ "text": "Rash" }] }]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "code": { "text": "Penicillin" },
+        "reaction": [{ "manifestation": [{ "text": "Hives" }], "severity": "moderate" }]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "code": { "text": "Essential hypertension" },
+        "clinicalStatus": { "coding": [{ "code": "active" }] }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "code": { "text": "Type 2 diabetes mellitus" },
+        "clinicalStatus": { "coding": [{ "code": "active" }] }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "category": [{ "coding": [{ "code": "laboratory" }] }],
+        "code": { "text": "Hemoglobin A1c" },
+        "valueQuantity": { "value": 7.2, "unit": "%" },
+        "effectiveDateTime": "2023-06-10"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "category": [{ "coding": [{ "code": "laboratory" }] }],
+        "code": { "text": "Fasting Glucose" },
+        "valueQuantity": { "value": 95 },
+        "effectiveDateTime": "2026-08-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Immunization",
+        "vaccineCode": { "text": "Influenza vaccine" },
+        "occurrenceDateTime": "2026-08-20"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Immunization",
+        "vaccineCode": { "text": "COVID-19 vaccine" }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Coverage",
+        "status": "active",
+        "type": { "text": "PPO" },
+        "payor": [{ "display": "Health Management Associates" }],
+        "class": [{ "type": { "coding": [{ "code": "plan" }] }, "name": "Simply Blue HSA PPO" }],
+        "period": { "start": "2026-01-01" }
+      }
+    }
+  ]
+}

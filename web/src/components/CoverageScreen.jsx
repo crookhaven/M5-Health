@@ -1,3 +1,5 @@
+import { sourceLabel } from '../lib/sourceLabels'
+
 const NETWORK_TIERS = ['In-Network', 'Out-of-Network']
 const FAMILY_COSTS = ['Individual', 'Family']
 
@@ -100,11 +102,6 @@ function BenefitsTable({ benefits }) {
   )
 }
 
-const SOURCE_TYPE_LABELS = {
-  sample: 'Sample data',
-  'file-upload': 'Uploaded file',
-}
-
 export default function CoverageScreen({ record }) {
   const plan = record.data
   const { source } = record
@@ -150,7 +147,7 @@ export default function CoverageScreen({ record }) {
 
       <footer className="source-note">
         <div>
-          {SOURCE_TYPE_LABELS[source.type] ?? source.type} ·{' '}
+          {sourceLabel(source)} ·{' '}
           {source.documentName} · imported{' '}
           {new Date(source.importedAt).toLocaleString()}
         </div>

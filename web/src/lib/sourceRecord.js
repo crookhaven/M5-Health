@@ -1,12 +1,14 @@
-export function createSourceRecord({ sourceType, documentName, data }) {
+export function createSourceRecord({ sourceType, documentName, domain, data, raw }) {
   return {
     id: crypto.randomUUID(),
+    domain,
     source: {
       type: sourceType,
       documentName,
       importedAt: new Date().toISOString(),
     },
     data,
+    raw: raw ?? null,
   }
 }
 

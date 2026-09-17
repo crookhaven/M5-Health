@@ -1,13 +1,97 @@
-.import-bar {
-  max-width: 960px;
+.app-shell {
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 20px 24px 0;
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  padding: 24px 24px 64px;
 }
 
-.import-bar button {
+.app-header h1 {
+  text-align: left;
+  margin: 0 0 4px;
+}
+
+.app-header p {
+  color: var(--text);
+  margin: 0 0 24px;
+}
+
+.app-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.app-tabs button {
+  font: inherit;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text);
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-tabs button.active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+.tab-badge {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 1px 7px;
+}
+
+.empty-state {
+  text-align: left;
+  color: var(--text);
+  padding: 40px 0;
+}
+
+/* Import panel */
+.import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.import-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: left;
+}
+
+.import-section h2 {
+  margin-top: 0;
+}
+
+.import-section p {
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.import-section input[type='text'],
+.import-section input[type='password'] {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.import-section button {
   font: inherit;
   padding: 8px 16px;
   border-radius: 6px;
@@ -17,8 +101,20 @@
   cursor: pointer;
 }
 
-.import-bar button:hover {
-  background: var(--accent-border);
+.import-section button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.import-message {
+  color: var(--text-h);
+  font-size: 14px;
 }
 
 .import-error {
@@ -26,6 +122,344 @@
   font-size: 14px;
 }
 
+.file-label {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.pdf-result {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.pdf-result textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.pdf-result label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.pdf-result select {
+  display: block;
+  margin-top: 4px;
+  font: inherit;
+  padding: 6px;
+}
+
+.pdf-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pdf-field-grid input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+/* Dashboard */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  text-align: left;
+}
+
+.dashboard h2 {
+  margin-bottom: 12px;
+}
+
+.coverage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.coverage-list .coverage-screen {
+  padding: 0;
+  max-width: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.record-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.record-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.record-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.record-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--code-bg);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.record-fields {
+  margin: 0 0 10px;
+}
+
+.record-fields > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.record-fields dt {
+  color: var(--text);
+}
+
+.record-fields dd {
+  margin: 0;
+  text-align: right;
+  color: var(--text-h);
+}
+
+.missing-value {
+  color: #c0392b;
+  font-style: italic;
+}
+
+.assertion-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.record-source {
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* Findings */
+.findings-panel section {
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.finding-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.finding-title {
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.finding-description {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 2px;
+  max-width: 480px;
+}
+
+.finding-decision {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.finding-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.finding-actions button,
+.review-form button {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.review-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.review-form input {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Scorecard */
+.scorecard {
+  text-align: left;
+  max-width: 560px;
+}
+
+.scorecard-overall {
+  margin-bottom: 28px;
+}
+
+.scorecard-overall-value {
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.scorecard-overall-label {
+  color: var(--text);
+}
+
+.scorecard-dimension {
+  margin-bottom: 16px;
+}
+
+.scorecard-dimension-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--text-h);
+}
+
+.scorecard-bar {
+  background: var(--code-bg);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.scorecard-bar-fill {
+  background: var(--accent);
+  height: 100%;
+}
+
+.scorecard-disclaimer {
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--text);
+  font-style: italic;
+}
+
+/* Share panel */
+.share-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  text-align: left;
+}
+
+.sharing-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sharing-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.export-actions button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.export-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.shl-result {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  max-width: 420px;
+}
+
+.shl-result img {
+  display: block;
+  margin: 12px 0;
+  width: 200px;
+  height: 200px;
+}
+
+.shl-uri {
+  display: block;
+  word-break: break-all;
+  font-size: 12px;
+  background: var(--code-bg);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+/* Coverage screen (used standalone and embedded in dashboard) */
 .coverage-screen {
   max-width: 960px;
   margin: 0 auto;

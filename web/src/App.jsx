@@ -1,64 +1,76 @@
-import { useRef, useState } from 'react'
-import samplePlan from './data/sample_plan_data.json'
-import CoverageScreen from './components/CoverageScreen'
-import { createSourceRecord, validateCoveragePlan } from './lib/sourceRecord'
+import { useMemo, useState } from 'react'
+import { WorkspaceProvider, useWorkspace } from './state/WorkspaceContext'
+import ImportPanel from './components/ImportPanel'
+import Dashboard from './components/Dashboard'
+import FindingsPanel from './components/FindingsPanel'
+import Scorecard from './components/Scorecard'
+import SharePanel from './components/SharePanel'
+import { runPiqiAnalysis } from './lib/piqi/engine'
+import { computeScorecard } from './lib/piqi/scorecard'
 import './App.css'
 
-function App() {
-  const [record, setRecord] = useState(() =>
-    createSourceRecord({
-      sourceType: 'sample',
-      documentName: 'sample_plan_data.json',
-      data: samplePlan,
-    }),
+const TABS = [
+  { key: 'import', label: 'Import' },
+  { key: 'dashboard', label: 'Health Record' },
+  { key: 'findings', label: 'Findings' },
+  { key: 'scorecard', label: 'Scorecard' },
+  { key: 'share', label: 'Share & Export' },
+]
+
+function AppContent() {
+  const { sourceRecords, assertions, findingDecisions } = useWorkspace()
+  const [tab, setTab] = useState('import')
+
+  const findings = useMemo(
+    () => runPiqiAnalysis(sourceRecords, assertions, findingDecisions),
+    [sourceRecords, assertions, findingDecisions],
   )
-  const [error, setError] = useState(null)
-  const fileInputRef = useRef(null)
-
-  function handleFileChange(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const parsed = validateCoveragePlan(JSON.parse(reader.result))
-        setRecord(
-          createSourceRecord({
-            sourceType: 'file-upload',
-            documentName: file.name,
-            data: parsed,
-          }),
-        )
-        setError(null)
-      } catch (err) {
-        setError(err.message)
-      }
-    }
-    reader.onerror = () => setError('Could not read that file.')
-    reader.readAsText(file)
-
-    event.target.value = ''
-  }
+  const scorecard = useMemo(
+    () => computeScorecard(findings, sourceRecords.length),
+    [findings, sourceRecords.length],
+  )
+  const openFindingsCount = findings.filter((f) => !f.decision).length
 
   return (
-    <>
-      <div className="import-bar">
-        <button type="button" onClick={() => fileInputRef.current?.click()}>
-          Import plan JSON
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json,.json"
-          onChange={handleFileChange}
-          hidden
-        />
-        {error && <span className="import-error">{error}</span>}
-      </div>
-      <CoverageScreen record={record} />
-    </>
+    <div className="app-shell">
+      <header className="app-header">
+        <h1>M5 Health</h1>
+        <p>Your patient-controlled health data workspace</p>
+      </header>
+      <nav className="app-tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={tab === t.key ? 'active' : ''}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+            {t.key === 'findings' && openFindingsCount > 0 && (
+              <span className="tab-badge">{openFindingsCount}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+      <main className="app-main">
+        {tab === 'import' && <ImportPanel />}
+        {tab === 'dashboard' && (
+          <Dashboard sourceRecords={sourceRecords} assertions={assertions} />
+        )}
+        {tab === 'findings' && <FindingsPanel findings={findings} />}
+        {tab === 'scorecard' && <Scorecard scorecard={scorecard} />}
+        {tab === 'share' && (
+          <SharePanel sourceRecords={sourceRecords} scorecard={scorecard} />
+        )}
+      </main>
+    </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <WorkspaceProvider>
+      <AppContent />
+    </WorkspaceProvider>
+  )
+}
