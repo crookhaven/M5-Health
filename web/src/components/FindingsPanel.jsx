@@ -27,7 +27,11 @@ function ReviewForm({ finding, onSubmit, onCancel }) {
         onSubmit(value)
       }}
     >
+      <label className="visually-hidden" htmlFor={`review-${finding.id}`}>
+        {finding.field ?? 'value'}
+      </label>
       <input
+        id={`review-${finding.id}`}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}

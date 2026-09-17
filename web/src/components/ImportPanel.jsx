@@ -97,7 +97,10 @@ function CoverageImport() {
   return (
     <section className="import-section">
       <h2>Coverage plan (JSON)</h2>
-      <input type="file" accept="application/json,.json" onChange={handleFile} />
+      <label className="file-label">
+        Choose coverage plan JSON file
+        <input type="file" accept="application/json,.json" onChange={handleFile} />
+      </label>
       {error && <p className="import-error">{error}</p>}
     </section>
   )
@@ -114,12 +117,14 @@ function PdfImport() {
   const [fields, setFields] = useState({})
   const [error, setError] = useState(null)
   const [addedCount, setAddedCount] = useState(0)
+  const [extracting, setExtracting] = useState(false)
 
   async function handleFile(event) {
     const file = event.target.files?.[0]
     if (!file) return
     setError(null)
     setAddedCount(0)
+    setExtracting(true)
     try {
       const buffer = await file.arrayBuffer()
       const { extractPdfText } = await import('../lib/pdf/extractText')
@@ -129,6 +134,8 @@ function PdfImport() {
       setDataUrl(file.size <= MAX_STORED_PDF_BYTES ? await fileToDataUrl(file) : null)
     } catch {
       setError('Could not read that PDF.')
+    } finally {
+      setExtracting(false)
     }
     event.target.value = ''
   }
@@ -160,7 +167,16 @@ function PdfImport() {
         fields still need your confirmation since PDFs vary too much to parse
         reliably.
       </p>
-      <input type="file" accept="application/pdf,.pdf" onChange={handleFile} />
+      <label className="file-label">
+        Choose health PDF file
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          onChange={handleFile}
+          disabled={extracting}
+        />
+      </label>
+      {extracting && <p className="import-message">Extracting text...</p>}
       {error && <p className="import-error">{error}</p>}
 
       {fileName && (
@@ -261,23 +277,29 @@ function ShlImport() {
     <section className="import-section">
       <h2>SMART Health Link</h2>
       <p>Paste an SHL URL, or upload an image of its QR code.</p>
-      <input
-        type="text"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="shlink:/... or https://...#shlink:/..."
-      />
+      <label className="file-label">
+        SMART Health Link URL
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="shlink:/... or https://...#shlink:/..."
+        />
+      </label>
       <label className="file-label">
         Upload QR code image
         <input type="file" accept="image/*" onChange={handleQrFile} />
       </label>
       {needsPasscode && (
-        <input
-          type="password"
-          value={passcode}
-          onChange={(e) => setPasscode(e.target.value)}
-          placeholder="Passcode"
-        />
+        <label className="file-label">
+          Passcode
+          <input
+            type="password"
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+            placeholder="Passcode"
+          />
+        </label>
       )}
       <button type="button" onClick={handleRetrieve} disabled={!url || busy}>
         {busy ? 'Retrieving...' : 'Retrieve'}

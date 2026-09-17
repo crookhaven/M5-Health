@@ -37,22 +37,34 @@ function AppContent() {
         <h1>M5 Health</h1>
         <p>Your patient-controlled health data workspace</p>
       </header>
-      <nav className="app-tabs">
+      <nav className="app-tabs" role="tablist" aria-label="Sections">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
+            role="tab"
+            id={`tab-${t.key}`}
+            aria-selected={tab === t.key}
+            aria-controls={`panel-${t.key}`}
             className={tab === t.key ? 'active' : ''}
             onClick={() => setTab(t.key)}
           >
             {t.label}
             {t.key === 'findings' && openFindingsCount > 0 && (
-              <span className="tab-badge">{openFindingsCount}</span>
+              <span className="tab-badge" aria-label={`${openFindingsCount} open findings`}>
+                {openFindingsCount}
+              </span>
             )}
           </button>
         ))}
       </nav>
-      <main className="app-main">
+      <main
+        className="app-main"
+        role="tabpanel"
+        id={`panel-${tab}`}
+        aria-labelledby={`tab-${tab}`}
+        tabIndex={-1}
+      >
         {tab === 'import' && <ImportPanel />}
         {tab === 'dashboard' && (
           <Dashboard sourceRecords={sourceRecords} assertions={assertions} />
