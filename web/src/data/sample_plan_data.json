@@ -1,0 +1,152 @@
+{
+  "_note": "Sample data for prototyping M5 Health's plan-benefit lookup feature. Shaped to match the fields returned by CMS's live Marketplace API (GET /plans/{plan_id}), but populated by hand from a real Blue Cross Blue Shield of Michigan employer group plan document (a BAAG, not a federal SBC). This plan is a self-funded employer group plan and will NOT be found via the CMS Marketplace API -- it has no HIOS Plan ID. Use this file only to build and test the display screen; swap in real API responses later for plans that ARE Marketplace plans.",
+  "source_document": "BCBSM Benefits-at-a-Glance (BAAG)",
+  "plan_name": "Simply Blue HSA PPO with Rx ASC",
+  "group_name": "Health Management Associates",
+  "group_number": "0070039340001",
+  "plan_suffix": "0CPQ8",
+  "effective_date": "2026-01-01",
+  "type": "PPO",
+  "hsa_eligible": true,
+  "deductibles": [
+    { "type": "Medical EHB Deductible", "network_tier": "In-Network", "family_cost": "Individual", "amount": 2000 },
+    { "type": "Medical EHB Deductible", "network_tier": "In-Network", "family_cost": "Family", "amount": 4000 },
+    { "type": "Medical EHB Deductible", "network_tier": "Out-of-Network", "family_cost": "Individual", "amount": 4000 },
+    { "type": "Medical EHB Deductible", "network_tier": "Out-of-Network", "family_cost": "Family", "amount": 8000 }
+  ],
+  "moops": [
+    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "In-Network", "family_cost": "Individual", "amount": 3000 },
+    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "In-Network", "family_cost": "Family", "amount": 6000 },
+    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "Out-of-Network", "family_cost": "Individual", "amount": 6000 },
+    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "Out-of-Network", "family_cost": "Family", "amount": 12000 }
+  ],
+  "benefits": [
+    {
+      "name": "Preventive Care Services",
+      "covered": true,
+      "explanation": "Health maintenance exam, gynecological exam, immunizations, screenings, well-baby/well-child visits",
+      "cost_sharings": [
+        { "network_tier": "In-Network", "copay_amount": 0, "coinsurance_rate": 0, "display_string": "100%, no deductible" },
+        { "network_tier": "Out-of-Network", "display_string": "Not covered" }
+      ]
+    },
+    {
+      "name": "Primary Care / Office Visit",
+      "covered": true,
+      "explanation": "Must be medically necessary",
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
+      ]
+    },
+    {
+      "name": "Urgent Care",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
+      ]
+    },
+    {
+      "name": "Emergency Room",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "display_string": "100% after in-network deductible (same as in-network)" }
+      ]
+    },
+    {
+      "name": "Ambulance",
+      "covered": true,
+      "explanation": "Must be medically necessary",
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "display_string": "100% after in-network deductible (same as in-network)" }
+      ]
+    },
+    {
+      "name": "Hospital Inpatient Care",
+      "covered": true,
+      "explanation": "Semiprivate room, inpatient physician care, general nursing care; unlimited days",
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
+      ]
+    },
+    {
+      "name": "Outpatient Surgery",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
+      ]
+    },
+    {
+      "name": "Diagnostic Tests / X-rays / Lab",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
+      ]
+    },
+    {
+      "name": "Outpatient Mental Health / Substance Use Disorder",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
+      ]
+    },
+    {
+      "name": "Outpatient Physical/Speech/Occupational Therapy",
+      "covered": true,
+      "has_limits": true,
+      "limit_unit": "visit",
+      "limit_quantity": 30,
+      "explanation": "Combined 30-visit maximum per member per calendar year (rehabilitation)",
+      "cost_sharings": [
+        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
+        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible; nonparticipating facilities not covered" }
+      ]
+    },
+    {
+      "name": "Generic Drugs (1-30 day, retail)",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "copay_amount": 10, "display_string": "After deductible, $10 copay" },
+        { "network_tier": "Out-of-Network", "copay_amount": 10, "coinsurance_rate": 0.20, "display_string": "After deductible, $10 copay plus 20%" }
+      ]
+    },
+    {
+      "name": "Preferred Brand Drugs (1-30 day, retail)",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "copay_amount": 40, "display_string": "After deductible, $40 copay" },
+        { "network_tier": "Out-of-Network", "copay_amount": 40, "coinsurance_rate": 0.20, "display_string": "After deductible, $40 copay plus 20%" }
+      ]
+    },
+    {
+      "name": "Nonpreferred Brand Drugs (1-30 day, retail)",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "copay_amount": 80, "display_string": "After deductible, $80 copay" },
+        { "network_tier": "Out-of-Network", "copay_amount": 80, "coinsurance_rate": 0.20, "display_string": "After deductible, $80 copay plus 20%" }
+      ]
+    },
+    {
+      "name": "Specialty Drugs (generic/preferred)",
+      "covered": true,
+      "explanation": "Only through Exclusive Pharmacy Network for Specialty Drugs; 30-day supply max",
+      "cost_sharings": [
+        { "network_tier": "In-Network", "coinsurance_rate": 0.15, "display_string": "After deductible, 15% of approved amount, max $150" }
+      ]
+    },
+    {
+      "name": "Specialty Drugs (nonpreferred)",
+      "covered": true,
+      "cost_sharings": [
+        { "network_tier": "In-Network", "coinsurance_rate": 0.25, "display_string": "After deductible, 25% of approved amount, max $300" }
+      ]
+    }
+  ]
+}
