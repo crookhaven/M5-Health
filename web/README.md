@@ -7,7 +7,8 @@ client-side in the browser -- there is no backend, and all data is kept in
 
 ## Setup
 
-Requires Node.js 20+.
+Requires Node.js 22+ (the test suite's jsdom dependency needs Node
+internals not present in Node 20).
 
 ```bash
 npm install
