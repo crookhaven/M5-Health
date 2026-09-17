@@ -1,5 +1,3 @@
-import planData from '../data/sample_plan_data.json'
-
 const NETWORK_TIERS = ['In-Network', 'Out-of-Network']
 const FAMILY_COSTS = ['Individual', 'Family']
 
@@ -102,46 +100,61 @@ function BenefitsTable({ benefits }) {
   )
 }
 
-export default function CoverageScreen() {
-  const plan = planData
+const SOURCE_TYPE_LABELS = {
+  sample: 'Sample data',
+  'file-upload': 'Uploaded file',
+}
+
+export default function CoverageScreen({ record }) {
+  const plan = record.data
+  const { source } = record
 
   return (
     <div className="coverage-screen">
       <header className="plan-header">
-        <h1>{plan.plan_name}</h1>
+        <h1>{plan.plan_name ?? 'Untitled plan'}</h1>
         <dl className="plan-meta">
           <div>
             <dt>Group</dt>
             <dd>
-              {plan.group_name} ({plan.group_number})
+              {plan.group_name ?? '—'}
+              {plan.group_number ? ` (${plan.group_number})` : ''}
             </dd>
           </div>
           <div>
             <dt>Plan type</dt>
             <dd>
-              {plan.type}
+              {plan.type ?? '—'}
               {plan.hsa_eligible ? ' · HSA-eligible' : ''}
             </dd>
           </div>
           <div>
             <dt>Effective date</dt>
-            <dd>{plan.effective_date}</dd>
+            <dd>{plan.effective_date ?? '—'}</dd>
           </div>
         </dl>
       </header>
 
       <section className="summary-grid">
-        <AmountTable title="Deductible" entries={plan.deductibles} />
-        <AmountTable title="Out-of-Pocket Maximum" entries={plan.moops} />
+        <AmountTable title="Deductible" entries={plan.deductibles ?? []} />
+        <AmountTable
+          title="Out-of-Pocket Maximum"
+          entries={plan.moops ?? []}
+        />
       </section>
 
       <section>
         <h2>Benefits</h2>
-        <BenefitsTable benefits={plan.benefits} />
+        <BenefitsTable benefits={plan.benefits ?? []} />
       </section>
 
       <footer className="source-note">
-        Source: {plan.source_document}
+        <div>
+          {SOURCE_TYPE_LABELS[source.type] ?? source.type} ·{' '}
+          {source.documentName} · imported{' '}
+          {new Date(source.importedAt).toLocaleString()}
+        </div>
+        {plan.source_document && <div>Document: {plan.source_document}</div>}
       </footer>
     </div>
   )

@@ -1,3 +1,31 @@
+.import-bar {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.import-bar button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.import-bar button:hover {
+  background: var(--accent-border);
+}
+
+.import-error {
+  color: #c0392b;
+  font-size: 14px;
+}
+
 .coverage-screen {
   max-width: 960px;
   margin: 0 auto;
