@@ -5,4 +5,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: process.env.GITHUB_PAGES ? '/M5-Health/' : '/',
   plugins: [react()],
+  test: {
+    setupFiles: ['./src/test/setup.js'],
+  },
 })
