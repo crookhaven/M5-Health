@@ -1,6 +1,12 @@
 # M5-Health
 M⁵ Health is an open-source personal and family health app built to explore the CMS Health Tech Ecosystem in practice. It brings health records, coverage information, medications, and other health data into one consumer-controlled experience using modern interoperability standards such as FHIR and SMART.
 
+## Running the app
+
+A working implementation of the MVP below lives in [`web/`](web/) -- a
+client-side React app with no backend. See [`web/README.md`](web/README.md)
+for setup instructions.
+
 # M5 Health - MVP
 
 ## Purpose
