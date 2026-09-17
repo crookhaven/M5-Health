@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import logo from './assets/logo.svg'
 import { WorkspaceProvider, useWorkspace } from './state/WorkspaceContext'
 import ImportPanel from './components/ImportPanel'
 import Dashboard from './components/Dashboard'
@@ -34,7 +35,10 @@ function AppContent() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>M5 Health</h1>
+        <div className="app-header-title">
+          <img src={logo} alt="" width="32" height="32" />
+          <h1>M5 Health</h1>
+        </div>
         <p>Your patient-controlled health data workspace</p>
       </header>
       <nav className="app-tabs" role="tablist" aria-label="Sections">

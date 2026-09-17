@@ -10,20 +10,47 @@
   border: 0;
 }
 
+body {
+  background: var(--code-bg);
+}
+
 .app-shell {
   max-width: 1080px;
-  margin: 0 auto;
-  padding: 24px 24px 64px;
+  margin: 24px auto;
+  padding: 32px 32px 64px;
+  background: var(--bg);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    margin: 0;
+    padding: 20px 16px 48px;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 100svh;
+  }
+}
+
+.app-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-header-title img {
+  border-radius: 8px;
 }
 
 .app-header h1 {
   text-align: left;
-  margin: 0 0 4px;
+  margin: 0;
 }
 
 .app-header p {
   color: var(--text);
-  margin: 0 0 24px;
+  margin: 6px 0 24px;
 }
 
 .app-tabs {
@@ -45,12 +72,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  transition: color 0.15s ease;
+}
+
+.app-tabs button:hover {
+  color: var(--text-h);
 }
 
 .app-tabs button.active {
-  color: var(--text-h);
+  color: var(--accent);
   border-bottom-color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tab-badge {
@@ -76,9 +108,10 @@
 
 .import-section {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 20px;
   text-align: left;
+  box-shadow: var(--shadow);
 }
 
 .import-section h2 {
@@ -111,6 +144,11 @@
   background: var(--accent-bg);
   color: var(--text-h);
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.import-section button:hover:not(:disabled) {
+  background: var(--accent-border);
 }
 
 .import-section button:disabled {
@@ -204,11 +242,11 @@
 }
 
 .coverage-list .coverage-screen {
-  padding: 0;
+  padding: 16px 20px;
   max-width: none;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 20px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
 }
 
 .record-grid {
@@ -219,8 +257,9 @@
 
 .record-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 14px 16px;
+  box-shadow: var(--shadow);
 }
 
 .record-card-header {
@@ -295,7 +334,7 @@
 
 .finding-row {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 14px 16px;
   margin-bottom: 10px;
   display: flex;
@@ -303,6 +342,7 @@
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
+  box-shadow: var(--shadow);
 }
 
 .finding-title {
@@ -339,6 +379,12 @@
   color: var(--text-h);
   cursor: pointer;
   white-space: nowrap;
+  transition: border-color 0.15s ease;
+}
+
+.finding-actions button:hover,
+.review-form button:hover {
+  border-color: var(--accent-border);
 }
 
 .review-form {
@@ -368,6 +414,8 @@
   font-size: 48px;
   font-weight: 600;
   color: var(--text-h);
+  line-height: 1.1;
+  margin-bottom: 4px;
 }
 
 .scorecard-overall-label {
@@ -440,6 +488,11 @@
   background: var(--accent-bg);
   color: var(--text-h);
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.export-actions button:hover:not(:disabled) {
+  background: var(--accent-border);
 }
 
 .export-actions button:disabled {
@@ -449,9 +502,10 @@
 
 .shl-result {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 16px;
   max-width: 420px;
+  box-shadow: var(--shadow);
 }
 
 .shl-result img {
@@ -519,7 +573,7 @@
 
 .amount-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 16px 20px;
 }
 
@@ -561,7 +615,7 @@ table {
 
 .benefits-table-wrap {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow-x: auto;
 }
 
