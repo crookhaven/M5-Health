@@ -2,10 +2,7 @@ import { useState } from 'react'
 import { useWorkspace } from '../state/WorkspaceContext'
 import { createSourceRecord, validateCoveragePlan } from '../lib/sourceRecord'
 import { normalizeFhirBundle } from '../lib/fhir/normalize'
-import { extractPdfText } from '../lib/pdf/extractText'
-import { decodeQrFromImageFile } from '../lib/qr/decodeImage'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
-import { retrieveShl, extractFhirBundles } from '../lib/shl/retrieve'
 import { REQUIRED_FIELDS, FIELD_LABELS } from '../lib/piqi/rules'
 import samplePatient from '../data/sample_fhir_bundle.json'
 import samplePlan from '../data/sample_plan_data.json'
@@ -125,6 +122,7 @@ function PdfImport() {
     setAddedCount(0)
     try {
       const buffer = await file.arrayBuffer()
+      const { extractPdfText } = await import('../lib/pdf/extractText')
       const extracted = await extractPdfText(buffer)
       setText(extracted)
       setFileName(file.name)
@@ -219,12 +217,13 @@ function ShlImport() {
     setError(null)
     setStatus(null)
     try {
+      const { retrieveShl, extractFhirBundles } = await import('../lib/shl/retrieve')
       const payload = parseShlUri(url)
       if (requiresPasscode(payload)) setNeedsPasscode(true)
       const { manifest, files } = await retrieveShl(payload, {
         passcode: passcode || undefined,
       })
-      const bundles = extractFhirBundles(files)
+      const bundles = await extractFhirBundles(files)
       const normalized = bundles.flatMap((bundle) => normalizeFhirBundle(bundle))
       const records = normalized.map(({ domain, data }) =>
         createSourceRecord({
@@ -249,6 +248,7 @@ function ShlImport() {
     if (!file) return
     setError(null)
     try {
+      const { decodeQrFromImageFile } = await import('../lib/qr/decodeImage')
       const decoded = await decodeQrFromImageFile(file)
       setUrl(decoded)
     } catch (err) {

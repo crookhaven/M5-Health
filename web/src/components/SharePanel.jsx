@@ -6,10 +6,7 @@ import {
   buildPdfSections,
   buildSharePackageBundle,
 } from '../lib/exportData'
-import { buildPdfSummary } from '../lib/export/pdfExport'
 import { downloadBlob, downloadText } from '../lib/download'
-import { buildShlPackage } from '../lib/shl/buildPackage'
-import { generateQrDataUrl } from '../lib/qr/generate'
 
 export default function SharePanel({ sourceRecords, scorecard }) {
   const { assertions, sharingSelection, setSharing } = useWorkspace()
@@ -22,7 +19,8 @@ export default function SharePanel({ sourceRecords, scorecard }) {
   )
   const domains = selectedDomains(sourceRecords, sharingSelection)
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
+    const { buildPdfSummary } = await import('../lib/export/pdfExport')
     const sections = buildPdfSections(domains, sourceRecords, assertions)
     const blob = buildPdfSummary({ sections, scorecard })
     downloadBlob(blob, 'm5-health-summary.pdf')
@@ -33,6 +31,8 @@ export default function SharePanel({ sourceRecords, scorecard }) {
     setShlError(null)
     setShlResult(null)
     try {
+      const { buildShlPackage } = await import('../lib/shl/buildPackage')
+      const { generateQrDataUrl } = await import('../lib/qr/generate')
       const bundle = buildSharePackageBundle(domains, sourceRecords, assertions)
       const pkg = await buildShlPackage(bundle, { label: 'M5 Health export' })
       const qr = await generateQrDataUrl(pkg.shlUri)

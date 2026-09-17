@@ -1,5 +1,4 @@
 import { decryptJwe } from './crypto'
-import { decodeHealthCardPayload } from './healthCard'
 
 export async function retrieveShl(payload, { recipient = 'M5 Health', passcode } = {}) {
   const body = { recipient }
@@ -43,12 +42,13 @@ export async function retrieveShl(payload, { recipient = 'M5 Health', passcode }
   return { manifest, files: decoded }
 }
 
-export function extractFhirBundles(decodedFiles) {
+export async function extractFhirBundles(decodedFiles) {
   const bundles = []
   for (const file of decodedFiles) {
     if (file.contentType === 'application/fhir+json') {
       bundles.push(JSON.parse(file.plaintext))
     } else if (file.contentType === 'application/smart-health-card') {
+      const { decodeHealthCardPayload } = await import('./healthCard')
       const bundle = decodeHealthCardPayload(file.plaintext)
       if (bundle) bundles.push(bundle)
     }
