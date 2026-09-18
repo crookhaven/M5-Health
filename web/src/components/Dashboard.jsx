@@ -1,6 +1,7 @@
 import { DOMAIN_ORDER, DOMAINS } from '../lib/domains'
-import { REQUIRED_FIELDS, FIELD_LABELS, recordLabel } from '../lib/piqi/rules'
+import { REQUIRED_FIELDS, FIELD_LABELS, IDENTITY_FIELDS, recordLabel } from '../lib/piqi/rules'
 import { effectiveData, timelinessBucketFor } from '../lib/piqi/engine'
+import { displayText } from '../lib/piqi/attributeTypes'
 import { sourceLabel } from '../lib/sourceLabels'
 import CoverageScreen from './CoverageScreen'
 
@@ -11,10 +12,15 @@ const TIMELINESS_LABELS = {
   unknown: null,
 }
 
+function fieldsToDisplay(domain) {
+  const fields = REQUIRED_FIELDS[domain] ?? []
+  const skip = domain === 'demographics' ? ['firstName', 'lastName'] : [IDENTITY_FIELDS[domain]]
+  return fields.filter((f) => !skip.includes(f))
+}
+
 function RecordCard({ domain, record, assertions }) {
   const { merged, assertedFields, confirmed } = effectiveData(record, assertions)
-  const fields = REQUIRED_FIELDS[domain] ?? []
-  const identityField = fields[0]
+  const fields = fieldsToDisplay(domain)
   const bucketLabel = TIMELINESS_LABELS[timelinessBucketFor(domain, record, assertions)]
 
   return (
@@ -24,15 +30,15 @@ function RecordCard({ domain, record, assertions }) {
         {bucketLabel && <span className="badge">{bucketLabel}</span>}
       </div>
       <dl className="record-fields">
-        {fields
-          .filter((f) => f !== identityField)
-          .map((field) => (
+        {fields.map((field) => {
+          const text = displayText(merged[field])
+          return (
             <div key={field}>
               <dt>{FIELD_LABELS[field] ?? field}</dt>
               <dd>
-                {merged[field] || merged[field] === 0 ? (
+                {text !== undefined ? (
                   <>
-                    {merged[field]}
+                    {text}
                     {assertedFields.has(field) && (
                       <span className="assertion-tag">patient-added</span>
                     )}
@@ -42,7 +48,8 @@ function RecordCard({ domain, record, assertions }) {
                 )}
               </dd>
             </div>
-          ))}
+          )
+        })}
       </dl>
       <div className="record-source">
         Status: {confirmed ? 'Patient Confirmed' : sourceLabel(record.source)}

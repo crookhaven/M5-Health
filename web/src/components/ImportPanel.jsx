@@ -4,6 +4,8 @@ import { createSourceRecord, validateCoveragePlan } from '../lib/sourceRecord'
 import { normalizeFhirBundle } from '../lib/fhir/normalize'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
 import { REQUIRED_FIELDS, FIELD_LABELS } from '../lib/piqi/rules'
+import { wrapAssertionValue } from '../lib/piqi/engine'
+import { DOMAINS } from '../lib/domains'
 import samplePatient from '../data/sample_fhir_bundle.json'
 import samplePlan from '../data/sample_plan_data.json'
 
@@ -106,7 +108,18 @@ function CoverageImport() {
   )
 }
 
-const PDF_DOMAINS = ['demographics', 'medications', 'allergies', 'conditions', 'labs', 'immunizations']
+const PDF_DOMAINS = [
+  'demographics',
+  'allergies',
+  'conditions',
+  'immunizations',
+  'labResults',
+  'medications',
+  'procedures',
+  'vitalSigns',
+  'medicalDevices',
+  'healthAssessments',
+]
 
 function PdfImport() {
   const { addRecords } = useWorkspace()
@@ -145,12 +158,15 @@ function PdfImport() {
   }
 
   function handleAddRecord() {
+    const wrapped = Object.fromEntries(
+      Object.entries(fields).map(([field, value]) => [field, wrapAssertionValue(domain, field, value)]),
+    )
     addRecords([
       createSourceRecord({
         sourceType: 'pdf-upload',
         documentName: fileName,
         domain,
-        data: fields,
+        data: wrapped,
         raw: { extractedText: text, fileDataUrl: dataUrl },
       }),
     ])
@@ -193,7 +209,7 @@ function PdfImport() {
             <select value={domain} onChange={(e) => { setDomain(e.target.value); setFields({}) }}>
               {PDF_DOMAINS.map((d) => (
                 <option key={d} value={d}>
-                  {d}
+                  {DOMAINS[d]?.label ?? d}
                 </option>
               ))}
             </select>

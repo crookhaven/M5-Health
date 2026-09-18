@@ -112,6 +112,39 @@
     },
     {
       "resource": {
+        "resourceType": "Procedure",
+        "status": "completed",
+        "code": { "text": "Appendectomy" },
+        "performedDateTime": "2019-03-02"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Procedure",
+        "status": "completed",
+        "code": { "text": "Screening colonoscopy" }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Device",
+        "status": "active",
+        "type": { "text": "Insulin pump" },
+        "udiCarrier": [{ "deviceIdentifier": "00844588003288" }]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "status": "final",
+        "category": [{ "coding": [{ "code": "social-history" }] }],
+        "code": { "text": "Tobacco smoking status" },
+        "valueCodeableConcept": { "text": "Former smoker" },
+        "effectiveDateTime": "2026-05-14"
+      }
+    },
+    {
+      "resource": {
         "resourceType": "Coverage",
         "status": "active",
         "type": { "text": "PPO" },

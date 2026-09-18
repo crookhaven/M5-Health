@@ -3,9 +3,19 @@ import {
   FIELD_LABELS,
   IDENTITY_FIELDS,
   DATE_FIELDS,
+  ATTRIBUTE_TYPES,
   recordLabel,
   normalizeText,
 } from './rules'
+import { isPopulated, codeableConcept, observationValue, rangeValue } from './attributeTypes'
+
+export function wrapAssertionValue(domain, field, rawText) {
+  const type = ATTRIBUTE_TYPES[domain]?.[field] ?? 'simple'
+  if (type === 'cc') return codeableConcept({ text: rawText })
+  if (type === 'obsval') return observationValue({ text: rawText })
+  if (type === 'rangeval') return rangeValue({ text: rawText })
+  return rawText
+}
 
 const RECENT_DAYS = 180
 const STALE_DAYS = 730
@@ -91,7 +101,7 @@ function completenessFindings(domain, records, assertions) {
     const { merged } = effectiveData(record, assertions)
     for (const field of requiredFields) {
       const value = merged[field]
-      if (value === undefined || value === null || value === '') {
+      if (!isPopulated(value)) {
         findings.push(
           makeFinding({
             id: `completeness:${domain}:${field}:${record.id}`,

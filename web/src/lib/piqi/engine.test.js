@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { runPiqiAnalysis } from './engine'
+import { runPiqiAnalysis, wrapAssertionValue } from './engine'
+import { codeableConcept } from './attributeTypes'
 
 function record(id, domain, data, overrides = {}) {
   return {
@@ -21,19 +22,18 @@ function findingIds(findings, dimension) {
 }
 
 describe('runPiqiAnalysis - completeness', () => {
-  it('flags a medication missing frequency, matching the spec example', () => {
+  it('flags a medication missing its route', () => {
     const records = [
       record('m1', 'medications', {
-        name: 'Atorvastatin',
-        dosage: '40 mg',
-        route: 'Oral',
-        status: 'active',
+        medication: codeableConcept({ text: 'Atorvastatin' }),
+        doseAmount: '40',
+        requestStatus: codeableConcept({ text: 'active' }),
       }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
-    const finding = findings.find((f) => f.id === 'completeness:medications:frequency:m1')
+    const finding = findings.find((f) => f.id === 'completeness:medications:doseRoute:m1')
     expect(finding).toBeDefined()
-    expect(finding.field).toBe('frequency')
+    expect(finding.field).toBe('doseRoute')
     expect(finding.title).toContain('Atorvastatin')
     expect(finding.suggestedActions).toEqual(['review', 'ignore_for_now', 'remind_later'])
   })
@@ -41,11 +41,10 @@ describe('runPiqiAnalysis - completeness', () => {
   it('does not flag a fully complete medication', () => {
     const records = [
       record('m1', 'medications', {
-        name: 'Lisinopril',
-        dosage: '20 mg',
-        frequency: 'Once daily',
-        route: 'Oral',
-        status: 'active',
+        medication: codeableConcept({ text: 'Lisinopril' }),
+        doseAmount: '20',
+        doseRoute: codeableConcept({ text: 'Oral' }),
+        requestStatus: codeableConcept({ text: 'active' }),
       }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
@@ -55,10 +54,9 @@ describe('runPiqiAnalysis - completeness', () => {
   it('resolves a completeness finding once a patient assertion fills the field', () => {
     const records = [
       record('m1', 'medications', {
-        name: 'Atorvastatin',
-        dosage: '40 mg',
-        route: 'Oral',
-        status: 'active',
+        medication: codeableConcept({ text: 'Atorvastatin' }),
+        doseAmount: '40',
+        requestStatus: codeableConcept({ text: 'active' }),
       }),
     ]
     const assertions = [
@@ -67,8 +65,8 @@ describe('runPiqiAnalysis - completeness', () => {
         kind: 'field',
         sourceRecordId: 'm1',
         domain: 'medications',
-        field: 'frequency',
-        value: 'Once daily',
+        field: 'doseRoute',
+        value: wrapAssertionValue('medications', 'doseRoute', 'Oral'),
         createdAt: new Date().toISOString(),
       },
     ]
@@ -85,9 +83,26 @@ describe('runPiqiAnalysis - completeness', () => {
   })
 })
 
+describe('wrapAssertionValue', () => {
+  it('wraps a CodeableConcept-typed field as { text, codings }', () => {
+    expect(wrapAssertionValue('medications', 'doseRoute', 'Oral')).toEqual({
+      text: 'Oral',
+      codings: [],
+    })
+  })
+
+  it('leaves a Simple Attribute field as a plain string', () => {
+    expect(wrapAssertionValue('medications', 'doseAmount', '40')).toBe('40')
+  })
+})
+
 describe('runPiqiAnalysis - duplication and consistency', () => {
   it('flags exact duplicates when every field matches', () => {
-    const data = { substance: 'Penicillin', reaction: 'Rash', severity: 'mild' }
+    const data = {
+      substance: codeableConcept({ text: 'Penicillin' }),
+      reaction: codeableConcept({ text: 'Rash' }),
+      severity: codeableConcept({ text: 'mild' }),
+    }
     const records = [record('a1', 'allergies', data), record('a2', 'allergies', { ...data })]
     const findings = runPiqiAnalysis(records, [], {})
     expect(findingIds(findings, 'duplication')).toEqual(['duplication:allergies:exact:a1,a2'])
@@ -96,8 +111,16 @@ describe('runPiqiAnalysis - duplication and consistency', () => {
 
   it('flags a consistency conflict when identity matches but other fields disagree', () => {
     const records = [
-      record('a1', 'allergies', { substance: 'Penicillin', reaction: 'Rash', severity: 'mild' }),
-      record('a2', 'allergies', { substance: 'Penicillin', reaction: 'Hives', severity: 'moderate' }),
+      record('a1', 'allergies', {
+        substance: codeableConcept({ text: 'Penicillin' }),
+        reaction: codeableConcept({ text: 'Rash' }),
+        severity: codeableConcept({ text: 'mild' }),
+      }),
+      record('a2', 'allergies', {
+        substance: codeableConcept({ text: 'Penicillin' }),
+        reaction: codeableConcept({ text: 'Hives' }),
+        severity: codeableConcept({ text: 'moderate' }),
+      }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
     expect(findingIds(findings, 'consistency')).toEqual(['consistency:allergies:conflict:a1,a2'])
@@ -106,8 +129,16 @@ describe('runPiqiAnalysis - duplication and consistency', () => {
 
   it('does not flag unrelated records with different identities', () => {
     const records = [
-      record('a1', 'allergies', { substance: 'Penicillin', reaction: 'Rash', severity: 'mild' }),
-      record('a2', 'allergies', { substance: 'Latex', reaction: 'Hives', severity: 'moderate' }),
+      record('a1', 'allergies', {
+        substance: codeableConcept({ text: 'Penicillin' }),
+        reaction: codeableConcept({ text: 'Rash' }),
+        severity: codeableConcept({ text: 'mild' }),
+      }),
+      record('a2', 'allergies', {
+        substance: codeableConcept({ text: 'Latex' }),
+        reaction: codeableConcept({ text: 'Hives' }),
+        severity: codeableConcept({ text: 'moderate' }),
+      }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
     expect(findingIds(findings, 'duplication')).toEqual([])
@@ -118,19 +149,24 @@ describe('runPiqiAnalysis - duplication and consistency', () => {
 describe('runPiqiAnalysis - timeliness', () => {
   it('flags a lab result older than two years as potentially stale', () => {
     const records = [
-      record('l1', 'labs', { test: 'Hemoglobin A1c', value: 7.2, unit: '%', date: '2020-01-01' }),
+      record('l1', 'labResults', {
+        test: codeableConcept({ text: 'Hemoglobin A1c' }),
+        resultValue: { text: '7.2' },
+        resultUnit: codeableConcept({ text: '%' }),
+        performedDateTime: '2020-01-01',
+      }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
-    expect(findingIds(findings, 'timeliness')).toEqual(['timeliness:labs:l1'])
+    expect(findingIds(findings, 'timeliness')).toEqual(['timeliness:labResults:l1'])
   })
 
   it('does not flag a recent lab result', () => {
     const records = [
-      record('l1', 'labs', {
-        test: 'Fasting Glucose',
-        value: 95,
-        unit: 'mg/dL',
-        date: new Date().toISOString().slice(0, 10),
+      record('l1', 'labResults', {
+        test: codeableConcept({ text: 'Fasting Glucose' }),
+        resultValue: { text: '95' },
+        resultUnit: codeableConcept({ text: 'mg/dL' }),
+        performedDateTime: new Date().toISOString().slice(0, 10),
       }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
@@ -142,11 +178,10 @@ describe('runPiqiAnalysis - provenance', () => {
   it('flags a record with no source type', () => {
     const records = [
       record('m1', 'medications', {
-        name: 'Lisinopril',
-        dosage: '20 mg',
-        frequency: 'Once daily',
-        route: 'Oral',
-        status: 'active',
+        medication: codeableConcept({ text: 'Lisinopril' }),
+        doseAmount: '20',
+        doseRoute: codeableConcept({ text: 'Oral' }),
+        requestStatus: codeableConcept({ text: 'active' }),
       }),
     ]
     records[0].source.type = undefined
@@ -157,11 +192,10 @@ describe('runPiqiAnalysis - provenance', () => {
   it('does not flag a record with a known source', () => {
     const records = [
       record('m1', 'medications', {
-        name: 'Lisinopril',
-        dosage: '20 mg',
-        frequency: 'Once daily',
-        route: 'Oral',
-        status: 'active',
+        medication: codeableConcept({ text: 'Lisinopril' }),
+        doseAmount: '20',
+        doseRoute: codeableConcept({ text: 'Oral' }),
+        requestStatus: codeableConcept({ text: 'active' }),
       }),
     ]
     const findings = runPiqiAnalysis(records, [], {})
@@ -173,17 +207,19 @@ describe('runPiqiAnalysis - decisions', () => {
   it('attaches the recorded decision for a finding', () => {
     const records = [
       record('m1', 'medications', {
-        name: 'Atorvastatin',
-        dosage: '40 mg',
-        route: 'Oral',
-        status: 'active',
+        medication: codeableConcept({ text: 'Atorvastatin' }),
+        doseAmount: '40',
+        requestStatus: codeableConcept({ text: 'active' }),
       }),
     ]
     const decisions = {
-      'completeness:medications:frequency:m1': { status: 'ignore_for_now', decidedAt: '2026-01-01T00:00:00.000Z' },
+      'completeness:medications:doseRoute:m1': {
+        status: 'ignore_for_now',
+        decidedAt: '2026-01-01T00:00:00.000Z',
+      },
     }
     const findings = runPiqiAnalysis(records, [], decisions)
-    const finding = findings.find((f) => f.id === 'completeness:medications:frequency:m1')
+    const finding = findings.find((f) => f.id === 'completeness:medications:doseRoute:m1')
     expect(finding.decision).toEqual(decisions[finding.id])
   })
 })

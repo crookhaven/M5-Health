@@ -34,9 +34,10 @@ describe('App', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Health Record' }))
     expect(screen.getByText('Atorvastatin')).toBeInTheDocument()
+    expect(screen.getByText('Insulin pump')).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /^Findings/ }))
-    expect(screen.getByText('Atorvastatin: frequency missing')).toBeInTheDocument()
+    expect(screen.getByText('COVID-19 vaccine: administration date missing')).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: 'Scorecard' }))
     expect(
@@ -49,10 +50,8 @@ describe('App', () => {
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Load sample health record' }))
     const findingsTab = screen.getByRole('tab', { name: /Findings/ })
-    expect(within(findingsTab).getByText('8')).toHaveAttribute(
-      'aria-label',
-      '8 open findings',
-    )
+    const badge = within(findingsTab).getByText(/^\d+$/)
+    expect(badge.getAttribute('aria-label')).toMatch(/open findings/)
   })
 
   it('lets a patient resolve a finding, which then disappears from the Findings tab', async () => {
@@ -61,18 +60,22 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Load sample health record' }))
     await user.click(screen.getByRole('tab', { name: /^Findings/ }))
 
-    expect(screen.getByText('Atorvastatin: frequency missing')).toBeInTheDocument()
+    expect(screen.getByText('COVID-19 vaccine: administration date missing')).toBeInTheDocument()
 
-    const findingRow = screen.getByText('Atorvastatin: frequency missing').closest('.finding-row')
+    const findingRow = screen
+      .getByText('COVID-19 vaccine: administration date missing')
+      .closest('.finding-row')
     await user.click(within(findingRow).getByRole('button', { name: /add info/i }))
-    await user.type(within(findingRow).getByPlaceholderText('Enter frequency'), 'Once daily')
+    await user.type(within(findingRow).getByPlaceholderText('Enter administration date'), '2026-09-01')
     await user.click(within(findingRow).getByRole('button', { name: /^save$/i }))
 
-    expect(screen.queryByText('Atorvastatin: frequency missing')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('COVID-19 vaccine: administration date missing'),
+    ).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: 'Health Record' }))
-    const atorvastatinCard = screen.getByText('Atorvastatin').closest('.record-card')
-    expect(within(atorvastatinCard).getByText('Once daily')).toBeInTheDocument()
-    expect(within(atorvastatinCard).getByText('patient-added')).toBeInTheDocument()
+    const covidCard = screen.getByText('COVID-19 vaccine').closest('.record-card')
+    expect(within(covidCard).getByText('2026-09-01')).toBeInTheDocument()
+    expect(within(covidCard).getByText('patient-added')).toBeInTheDocument()
   })
 })

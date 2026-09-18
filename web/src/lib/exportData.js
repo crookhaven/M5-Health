@@ -1,6 +1,7 @@
 import { DOMAIN_ORDER, DOMAINS } from './domains'
-import { REQUIRED_FIELDS, FIELD_LABELS, recordLabel } from './piqi/rules'
+import { REQUIRED_FIELDS, FIELD_LABELS, IDENTITY_FIELDS, recordLabel } from './piqi/rules'
 import { effectiveData } from './piqi/engine'
+import { displayText } from './piqi/attributeTypes'
 import { sourceLabel } from './sourceLabels'
 
 function coverageLines(data) {
@@ -26,7 +27,7 @@ export function selectedDomains(sourceRecords, sharingSelection) {
 export function buildPdfSections(domains, sourceRecords, assertions) {
   return domains.map((domain) => {
     const records = sourceRecords.filter((r) => r.domain === domain)
-    const identityField = (REQUIRED_FIELDS[domain] ?? [])[0]
+    const skip = domain === 'demographics' ? ['firstName', 'lastName'] : [IDENTITY_FIELDS[domain]]
     return {
       label: DOMAINS[domain].label,
       records: records.map((record) => {
@@ -35,8 +36,8 @@ export function buildPdfSections(domains, sourceRecords, assertions) {
           domain === 'coverage'
             ? coverageLines(merged)
             : (REQUIRED_FIELDS[domain] ?? [])
-                .filter((f) => f !== identityField)
-                .map((f) => `${FIELD_LABELS[f] ?? f}: ${merged[f] ?? 'not recorded'}`)
+                .filter((f) => !skip.includes(f))
+                .map((f) => `${FIELD_LABELS[f] ?? f}: ${displayText(merged[f]) ?? 'not recorded'}`)
         return {
           title: recordLabel(domain, merged),
           lines,

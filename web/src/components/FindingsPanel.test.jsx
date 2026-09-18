@@ -35,14 +35,14 @@ describe('FindingsPanel', () => {
         id: 'f1',
         domain: 'medications',
         dimension: 'completeness',
-        field: 'frequency',
-        title: 'Atorvastatin: frequency missing',
-        description: 'frequency was not present.',
+        field: 'doseRoute',
+        title: 'Atorvastatin: route missing',
+        description: 'route was not present.',
         decision: null,
       },
       {
         id: 'f2',
-        domain: 'labs',
+        domain: 'labResults',
         dimension: 'timeliness',
         field: null,
         title: 'Hemoglobin A1c: potentially stale',
@@ -53,7 +53,7 @@ describe('FindingsPanel', () => {
     renderWithProvider(findings)
     expect(screen.getByRole('heading', { name: 'Completeness' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Timeliness' })).toBeInTheDocument()
-    expect(screen.getByText('Atorvastatin: frequency missing')).toBeInTheDocument()
+    expect(screen.getByText('Atorvastatin: route missing')).toBeInTheDocument()
     expect(screen.getByText('Hemoglobin A1c: potentially stale')).toBeInTheDocument()
   })
 
@@ -62,7 +62,7 @@ describe('FindingsPanel', () => {
     const findings = [
       {
         id: 'f1',
-        domain: 'labs',
+        domain: 'labResults',
         dimension: 'timeliness',
         field: null,
         title: 'Hemoglobin A1c: potentially stale',
@@ -75,23 +75,23 @@ describe('FindingsPanel', () => {
     expect(workspaceState().findingDecisions.f1.status).toBe('ignore_for_now')
   })
 
-  it('saves a patient assertion without touching the source record', async () => {
+  it('saves a patient assertion, wrapped as a CodeableConcept, without touching the source record', async () => {
     const user = userEvent.setup()
     const findings = [
       {
         id: 'f1',
         domain: 'medications',
         dimension: 'completeness',
-        field: 'frequency',
+        field: 'doseRoute',
         recordIds: ['m1'],
-        title: 'Atorvastatin: frequency missing',
-        description: 'frequency was not present.',
+        title: 'Atorvastatin: route missing',
+        description: 'route was not present.',
         decision: null,
       },
     ]
     renderWithProvider(findings)
     await user.click(screen.getByRole('button', { name: /add info/i }))
-    await user.type(screen.getByPlaceholderText('Enter frequency'), 'Once daily')
+    await user.type(screen.getByPlaceholderText('Enter route'), 'Oral')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     const state = workspaceState()
@@ -99,8 +99,8 @@ describe('FindingsPanel', () => {
     expect(state.assertions[0]).toMatchObject({
       kind: 'field',
       sourceRecordId: 'm1',
-      field: 'frequency',
-      value: 'Once daily',
+      field: 'doseRoute',
+      value: { text: 'Oral', codings: [] },
     })
     expect(state.findingDecisions.f1.status).toBe('reviewed')
   })

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useWorkspace } from '../state/WorkspaceContext'
+import { FIELD_LABELS } from '../lib/piqi/rules'
+import { wrapAssertionValue } from '../lib/piqi/engine'
 
 const DIMENSION_LABELS = {
   completeness: 'Completeness',
@@ -19,6 +21,7 @@ const DECISION_LABELS = {
 
 function ReviewForm({ finding, onSubmit, onCancel }) {
   const [value, setValue] = useState('')
+  const fieldLabel = FIELD_LABELS[finding.field] ?? finding.field ?? 'value'
   return (
     <form
       className="review-form"
@@ -28,14 +31,14 @@ function ReviewForm({ finding, onSubmit, onCancel }) {
       }}
     >
       <label className="visually-hidden" htmlFor={`review-${finding.id}`}>
-        {finding.field ?? 'value'}
+        {fieldLabel}
       </label>
       <input
         id={`review-${finding.id}`}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={`Enter ${finding.field ?? 'value'}`}
+        placeholder={`Enter ${fieldLabel}`}
         autoFocus
       />
       <button type="submit" disabled={!value.trim()}>
@@ -61,7 +64,7 @@ function FindingRow({ finding }) {
       sourceRecordId: finding.recordIds[0],
       domain: finding.domain,
       field: finding.field,
-      value,
+      value: wrapAssertionValue(finding.domain, finding.field, value),
       createdAt: new Date().toISOString(),
     })
     setFindingDecision(finding.id, 'reviewed')
