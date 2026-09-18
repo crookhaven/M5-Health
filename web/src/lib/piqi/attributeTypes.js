@@ -103,7 +103,11 @@ export function toWireValue(value) {
   if (type === 'obsval') {
     return {
       text: value.text ?? null,
-      type: value.type ? toWireValue(value.type) : null,
+      // The real PIQI reference engine's parser throws ("Sequence contains
+      // no elements") on a literal `type: null` -- confirmed by submitting
+      // to the live Connectathon USCDI v3.1 scoring endpoint. An empty
+      // CodeableConcept shape is required even when unset.
+      type: toWireValue(value.type ?? codeableConcept({})),
       number: value.number ?? null,
       number2: value.number2 ?? null,
       codings: value.codings ?? [],

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { codeableConcept, observationValue, rangeValue, displayText, isPopulated } from './attributeTypes'
+import {
+  codeableConcept,
+  observationValue,
+  rangeValue,
+  displayText,
+  isPopulated,
+  toWireValue,
+} from './attributeTypes'
 
 // localStorage persistence round-trips every value through JSON.stringify/
 // parse, which drops undefined-valued keys and any non-enumerable property
@@ -61,5 +68,31 @@ describe('isPopulated', () => {
 
   it('is true for a numeric Observation Value even when text is absent', () => {
     expect(isPopulated(observationValue({ number: 0 }))).toBe(true)
+  })
+})
+
+describe('toWireValue', () => {
+  it('never emits a literal null for an Observation Value\'s type -- the real', () => {
+    // PIQI reference engine's ScoreMessage endpoint throws "Sequence
+    // contains no elements" on `resultValue.type: null` (confirmed against
+    // the live Connectathon USCDI v3.1 channel); an empty CodeableConcept
+    // shape is required instead, even when `type` was never set.
+    const wire = toWireValue(observationValue({ number: 7.2 }))
+    expect(wire.type).toEqual({ text: null, codings: [] })
+    expect(wire.type).not.toBeNull()
+  })
+
+  it('serializes a populated Observation Value type as a wire CodeableConcept', () => {
+    const wire = toWireValue(observationValue({ text: 'ST', type: codeableConcept({ text: 'ST' }) }))
+    expect(wire.type).toEqual({ text: 'ST', codings: [] })
+  })
+
+  it('serializes null/empty codings and text for an unset CodeableConcept', () => {
+    expect(toWireValue(codeableConcept({}))).toEqual({ text: null, codings: [] })
+  })
+
+  it('serializes a Simple Attribute value as-is, and an unset one as null', () => {
+    expect(toWireValue('Oral')).toBe('Oral')
+    expect(toWireValue(undefined)).toBeNull()
   })
 })

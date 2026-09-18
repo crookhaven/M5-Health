@@ -114,18 +114,46 @@ function isCategory(resource, code) {
   return resource.category?.some((c) => c.coding?.some((coded) => coded.code === code))
 }
 
-function normalizeObservationValue(resource) {
-  if (resource.valueQuantity) {
+// Works for either an Observation resource or one of its `component` entries
+// -- both carry value[x]/referenceRange directly per the FHIR spec.
+function normalizeObservationValue(source) {
+  if (source.valueQuantity) {
     return observationValue({
-      number: resource.valueQuantity.value,
-      text: resource.valueQuantity.unit ? undefined : String(resource.valueQuantity.value),
+      number: source.valueQuantity.value,
+      text: source.valueQuantity.unit ? undefined : String(source.valueQuantity.value),
     })
   }
-  if (resource.valueString) return observationValue({ text: resource.valueString })
-  if (resource.valueCodeableConcept) {
-    return observationValue({ text: resource.valueCodeableConcept.text, type: ccFromConcept(resource.valueCodeableConcept) })
+  if (source.valueString) return observationValue({ text: source.valueString })
+  if (source.valueCodeableConcept) {
+    return observationValue({ text: source.valueCodeableConcept.text, type: ccFromConcept(source.valueCodeableConcept) })
   }
   return undefined
+}
+
+function hasDirectValue(source) {
+  return (
+    source.valueQuantity !== undefined ||
+    source.valueString !== undefined ||
+    source.valueCodeableConcept !== undefined
+  )
+}
+
+// Panel-style Observations (blood pressure, multi-question survey
+// instruments like PRAPARE) carry their real values in `component`, not on
+// the resource itself. Real-world PIQI converters emit one record per
+// component in that case, rather than one for the whole panel --
+// confirmed by comparing against navapbc/piqi-data's reference conversion
+// of Synthea output, where vitalSigns/healthAssessments counts only
+// matched ours once component expansion was added.
+function observationValueSources(resource) {
+  const sources = []
+  if (hasDirectValue(resource) || !resource.component?.length) {
+    sources.push({ code: resource.code, valueSource: resource })
+  }
+  for (const component of resource.component ?? []) {
+    sources.push({ code: component.code, valueSource: component })
+  }
+  return sources
 }
 
 function normalizeReferenceRange(resource) {
@@ -159,33 +187,33 @@ function normalizeLabResult(resource) {
 }
 
 function normalizeVitalSign(resource) {
-  return {
+  return observationValueSources(resource).map(({ code, valueSource }) => ({
     domain: 'vitalSigns',
     data: {
-      vitalSign: ccFromConcept(resource.code),
-      resultValue: normalizeObservationValue(resource),
-      resultUnit: resource.valueQuantity?.unit ? ccFromText(resource.valueQuantity.unit) : undefined,
+      vitalSign: ccFromConcept(code),
+      resultValue: normalizeObservationValue(valueSource),
+      resultUnit: valueSource.valueQuantity?.unit ? ccFromText(valueSource.valueQuantity.unit) : undefined,
       interpretation: ccFromConcept(resource.interpretation?.[0]),
       resultStatus: ccFromText(resource.status),
       performedDateTime: resource.effectiveDateTime,
-      referenceRange: normalizeReferenceRange(resource),
+      referenceRange: normalizeReferenceRange(valueSource),
       vitalSignCategory: ccFromConcept(resource.category?.[0]),
     },
-  }
+  }))
 }
 
 function normalizeHealthAssessment(resource) {
-  return {
+  return observationValueSources(resource).map(({ code, valueSource }) => ({
     domain: 'healthAssessments',
     data: {
-      assessment: ccFromConcept(resource.code),
+      assessment: ccFromConcept(code),
       assessmentStatus: ccFromText(resource.status),
-      resultValue: normalizeObservationValue(resource),
-      resultUnit: resource.valueQuantity?.unit ? ccFromText(resource.valueQuantity.unit) : undefined,
+      resultValue: normalizeObservationValue(valueSource),
+      resultUnit: valueSource.valueQuantity?.unit ? ccFromText(valueSource.valueQuantity.unit) : undefined,
       effectiveDate: resource.effectiveDateTime,
       category: ccFromConcept(resource.category?.[0]),
     },
-  }
+  }))
 }
 
 function normalizeObservation(resource) {
@@ -278,7 +306,11 @@ export function normalizeFhirBundle(bundle) {
     const normalizer = NORMALIZERS[resource.resourceType]
     if (!normalizer) continue
     const result = normalizer(resource)
-    if (result) results.push(result)
+    if (Array.isArray(result)) {
+      results.push(...result)
+    } else if (result) {
+      results.push(result)
+    }
   }
   return results
 }
