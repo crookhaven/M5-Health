@@ -108,6 +108,63 @@ function CoverageImport() {
   )
 }
 
+function FhirBundleImport() {
+  const { addRecords } = useWorkspace()
+  const [status, setStatus] = useState(null)
+  const [error, setError] = useState(null)
+
+  function handleFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const bundle = JSON.parse(reader.result)
+        const normalized = normalizeFhirBundle(bundle)
+        if (normalized.length === 0) {
+          throw new Error(
+            'No recognized FHIR resources found. This importer expects a single Bundle (not a bulk-export NDJSON file).',
+          )
+        }
+        const records = normalized.map(({ domain, data }) =>
+          createSourceRecord({
+            sourceType: 'fhir-bundle-upload',
+            documentName: file.name,
+            domain,
+            data,
+          }),
+        )
+        addRecords(records)
+        setStatus(`Imported ${records.length} records from ${file.name}.`)
+        setError(null)
+      } catch (err) {
+        setError(err.message)
+      }
+    }
+    reader.onerror = () => setError('Could not read that file.')
+    reader.readAsText(file)
+    event.target.value = ''
+  }
+
+  return (
+    <section className="import-section">
+      <h2>FHIR Bundle (JSON)</h2>
+      <p>
+        Upload a single FHIR Bundle -- for example a per-patient sample from
+        Synthea-generated test data or another synthetic dataset. This is not
+        for real patient records: prefer the SMART Health Link importer above
+        for those, and never upload files containing PHI to a third party.
+      </p>
+      <label className="file-label">
+        Choose FHIR Bundle JSON file
+        <input type="file" accept="application/json,.json" onChange={handleFile} />
+      </label>
+      {status && <p className="import-message">{status}</p>}
+      {error && <p className="import-error">{error}</p>}
+    </section>
+  )
+}
+
 const PDF_DOMAINS = [
   'demographics',
   'allergies',
@@ -331,6 +388,7 @@ export default function ImportPanel() {
     <div className="import-panel">
       <SampleImport />
       <CoverageImport />
+      <FhirBundleImport />
       <PdfImport />
       <ShlImport />
     </div>

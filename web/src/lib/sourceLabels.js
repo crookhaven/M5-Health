@@ -3,6 +3,7 @@ export const SOURCE_TYPE_LABELS = {
   'file-upload': 'Uploaded file',
   'smart-health-link': 'SMART Health Link',
   'pdf-upload': 'PDF import',
+  'fhir-bundle-upload': 'FHIR bundle upload',
   manual: 'Manually entered',
 }
 
