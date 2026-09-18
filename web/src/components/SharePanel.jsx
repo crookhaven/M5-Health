@@ -6,6 +6,7 @@ import {
   buildPdfSections,
   buildSharePackageBundle,
 } from '../lib/exportData'
+import { buildPiqiMessage } from '../lib/piqi/message'
 import { downloadBlob, downloadText } from '../lib/download'
 
 export default function SharePanel({ sourceRecords, scorecard }) {
@@ -18,6 +19,12 @@ export default function SharePanel({ sourceRecords, scorecard }) {
     sourceRecords.some((r) => r.domain === d),
   )
   const domains = selectedDomains(sourceRecords, sharingSelection)
+  const piqiDomains = domains.filter((d) => d !== 'coverage')
+
+  function handleExportPiqiMessage() {
+    const message = buildPiqiMessage(sourceRecords, assertions, { domains: piqiDomains })
+    downloadText(JSON.stringify(message, null, 2), 'm5-health-piqi-message.json')
+  }
 
   async function handleExportPdf() {
     const { buildPdfSummary } = await import('../lib/export/pdfExport')
@@ -91,7 +98,20 @@ export default function SharePanel({ sourceRecords, scorecard }) {
           >
             {building ? 'Building...' : 'Create SMART Health Link package'}
           </button>
+          <button
+            type="button"
+            onClick={handleExportPiqiMessage}
+            disabled={piqiDomains.length === 0}
+          >
+            Export PIQI message (.json)
+          </button>
         </div>
+        {piqiDomains.length === 0 && domains.length > 0 && (
+          <p className="import-message">
+            Only Coverage is selected, which isn't part of the PIQI Clinical
+            Data Model, so there's nothing to include in a PIQI message.
+          </p>
+        )}
 
         {shlError && <p className="import-error">{shlError}</p>}
 

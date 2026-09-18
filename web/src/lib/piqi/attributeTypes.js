@@ -83,3 +83,34 @@ export function displayText(value) {
 export function isPopulated(value) {
   return displayText(value) !== undefined
 }
+
+// Converts an internal attribute value to the literal wire shape used by the
+// real PIQI reference engine's message fixtures (every key present, `null`
+// instead of an omitted/undefined value) --
+// https://github.com/piqiframework/reference_application/blob/main/PIQI.Service.Test/TestData/Input/Test5_PIQI.json
+export function toWireValue(value) {
+  if (value === undefined) return null
+  if (typeof value === 'string' || typeof value === 'number') return value
+
+  const type = value.$type ?? guessType(value)
+  if (type === 'rangeval') {
+    return {
+      text: value.text ?? null,
+      lowValue: value.lowValue ?? null,
+      highValue: value.highValue ?? null,
+    }
+  }
+  if (type === 'obsval') {
+    return {
+      text: value.text ?? null,
+      type: value.type ? toWireValue(value.type) : null,
+      number: value.number ?? null,
+      number2: value.number2 ?? null,
+      codings: value.codings ?? [],
+    }
+  }
+  return {
+    text: value.text ?? null,
+    codings: value.codings ?? [],
+  }
+}
