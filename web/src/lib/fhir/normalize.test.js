@@ -26,6 +26,55 @@ describe('normalizeFhirBundle', () => {
     expect(displayText(result.data.birthSex)).toBe('female')
   })
 
+  it('parses US Core race, ethnicity, and birth sex extensions', () => {
+    const bundle = {
+      resourceType: 'Bundle',
+      entry: [
+        {
+          resource: {
+            resourceType: 'Patient',
+            name: [{ given: ['Jessica'], family: 'Martin' }],
+            gender: 'female',
+            extension: [
+              {
+                url: 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race',
+                extension: [
+                  {
+                    url: 'ombCategory',
+                    valueCoding: { system: 'urn:oid:2.16.840.1.113883.6.238', code: '2106-3', display: 'White' },
+                  },
+                  { url: 'text', valueString: 'White' },
+                ],
+              },
+              {
+                url: 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity',
+                extension: [
+                  {
+                    url: 'ombCategory',
+                    valueCoding: {
+                      system: 'urn:oid:2.16.840.1.113883.6.238',
+                      code: '2186-5',
+                      display: 'Not Hispanic or Latino',
+                    },
+                  },
+                  { url: 'text', valueString: 'Not Hispanic or Latino' },
+                ],
+              },
+              {
+                url: 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex',
+                valueCode: 'F',
+              },
+            ],
+          },
+        },
+      ],
+    }
+    const [result] = normalizeFhirBundle(bundle)
+    expect(displayText(result.data.race)).toBe('White')
+    expect(displayText(result.data.ethnicity)).toBe('Not Hispanic or Latino')
+    expect(displayText(result.data.birthSex)).toBe('Female')
+  })
+
   it('maps a MedicationRequest to medications with typed attributes', () => {
     const bundle = {
       resourceType: 'Bundle',

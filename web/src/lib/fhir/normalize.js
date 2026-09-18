@@ -22,6 +22,35 @@ function humanName(name) {
   }
 }
 
+const US_CORE_EXTENSION_BASE = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-'
+
+// US Core's race/ethnicity extensions carry an OMB category coding plus a
+// free-text summary as sub-extensions, rather than a plain CodeableConcept --
+// https://hl7.org/fhir/us/core/StructureDefinition-us-core-race.html
+function usCoreCategoryConcept(resource, extensionName) {
+  const ext = resource.extension?.find((e) => e.url === `${US_CORE_EXTENSION_BASE}${extensionName}`)
+  if (!ext) return undefined
+  const ombCoding = ext.extension?.find((e) => e.url === 'ombCategory')?.valueCoding
+  const text = ext.extension?.find((e) => e.url === 'text')?.valueString
+  if (!ombCoding && !text) return undefined
+  return codeableConcept({
+    text,
+    codings: ombCoding ? [coding({ code: ombCoding.code, display: ombCoding.display, system: ombCoding.system })] : [],
+  })
+}
+
+// US Core birth sex is a fixed-code extension (M/F/UNK), distinct from the
+// base FHIR `gender` administrative field -- prefer it when present.
+function usCoreBirthSex(resource) {
+  const code = resource.extension?.find((e) => e.url === `${US_CORE_EXTENSION_BASE}birthsex`)?.valueCode
+  if (!code) return undefined
+  const display = { M: 'Male', F: 'Female', UNK: 'Unknown' }[code] ?? code
+  return codeableConcept({
+    text: display,
+    codings: [coding({ code, display, system: 'http://hl7.org/fhir/administrative-gender' })],
+  })
+}
+
 function normalizePatient(resource) {
   const name = humanName(resource.name?.[0])
   const address = resource.address?.[0]
@@ -35,7 +64,9 @@ function normalizePatient(resource) {
       middleName: name.middleName,
       lastName: name.lastName,
       birthDate: resource.birthDate,
-      birthSex: ccFromText(resource.gender),
+      birthSex: usCoreBirthSex(resource) ?? ccFromText(resource.gender),
+      race: usCoreCategoryConcept(resource, 'race'),
+      ethnicity: usCoreCategoryConcept(resource, 'ethnicity'),
       deceased:
         resource.deceasedBoolean !== undefined
           ? ccFromText(resource.deceasedBoolean ? 'Yes' : 'No')
