@@ -357,6 +357,40 @@ body {
   max-width: 480px;
 }
 
+.route-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.route-fix {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.finding-next-step {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 6px;
+  max-width: 480px;
+}
+
+.provider-note {
+  white-space: pre-wrap;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
 .finding-decision {
   margin-top: 6px;
   font-size: 12px;
