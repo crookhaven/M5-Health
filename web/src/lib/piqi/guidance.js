@@ -15,10 +15,10 @@ export const ROUTE_PROVIDER = 'provider'
 
 // Measured or clinician-determined values. A patient should never type these
 // in from memory, so gaps here always go to the provider.
-const PROVIDER_ONLY_DOMAINS = new Set(['labResults', 'vitalSigns', 'healthAssessments', 'medicalDevices'])
+export const PROVIDER_ONLY_DOMAINS = new Set(['labResults', 'vitalSigns', 'healthAssessments', 'medicalDevices'])
 
 // Missing fields a patient can usually answer themselves.
-const PATIENT_FIXABLE_FIELDS = new Set([
+export const PATIENT_FIXABLE_FIELDS = new Set([
   'firstName',
   'lastName',
   'birthDate',
@@ -35,7 +35,7 @@ const PATIENT_FIXABLE_FIELDS = new Set([
 ])
 
 // Plain-language explanations for the gaps that come up most.
-const FIELD_GUIDANCE = {
+export const FIELD_GUIDANCE = {
   doseAmount: {
     explanation: 'The record does not say how much of this medicine to take each time.',
     nextStep: 'Check your pill bottle or pharmacy label and enter the dose (for example, 20 mg).',
@@ -83,10 +83,40 @@ function fixOrProvider(finding) {
   return PATIENT_FIXABLE_FIELDS.has(finding.field) ? ROUTE_FIX : ROUTE_PROVIDER
 }
 
+// Medication names often carry the strength and form ("Lisinopril 10 MG Oral
+// Tablet"). That is the size of one tablet, not how much you take each time or
+// how often, so the structured dose can still be genuinely missing.
+const STRENGTH_PATTERN = /\b\d+(?:\.\d+)?\s*(?:MG|MCG|G|ML|UNITS?|IU)\b/i
+const ORAL_PATTERN = /\boral\b/i
+
+function medicationNameHints(finding) {
+  const name = finding.title.split(':')[0]
+  return {
+    strength: name.match(STRENGTH_PATTERN)?.[0] ?? null,
+    isOral: ORAL_PATTERN.test(name),
+  }
+}
+
 function completenessGuidance(finding) {
   const label = FIELD_LABELS[finding.field] ?? finding.field ?? 'a detail'
   const route = fixOrProvider(finding)
-  const known = FIELD_GUIDANCE[finding.field]
+  let known = FIELD_GUIDANCE[finding.field]
+
+  if (finding.domain === 'medications') {
+    const { strength, isOral } = medicationNameHints(finding)
+    if (finding.field === 'doseAmount' && strength) {
+      known = {
+        explanation: `The medicine name shows its strength (${strength}), but the record does not say how much you take each time or how often. For example, one ${strength} tablet twice a day is different from two tablets once a day.`,
+        nextStep: 'Check your pill bottle or pharmacy label for the directions and enter how much you take each time (for example, 1 tablet).',
+      }
+    }
+    if (finding.field === 'doseRoute' && isOral) {
+      known = {
+        explanation: 'The medicine name says it is an oral medicine, but the record does not list the route (how it is taken) as its own detail.',
+        nextStep: 'If you swallow it by mouth, enter "Oral". Check your pill bottle or pharmacy label if you are not sure.',
+      }
+    }
+  }
 
   if (route === ROUTE_FIX) {
     return {

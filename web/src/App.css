@@ -695,3 +695,112 @@ table {
   font-size: 13px;
   color: var(--text);
 }
+
+/* PIQI Results / What to do */
+.score-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.score-profile {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.score-meta {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 2px;
+  max-width: 460px;
+}
+
+.score-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-h);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text);
+  max-width: 150px;
+}
+
+.local-note {
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+}
+
+.route-badge.critical {
+  color: #b42318;
+  border-color: #b42318;
+}
+
+.class-table {
+  width: 100%;
+  max-width: 520px;
+  border-collapse: collapse;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.class-table th,
+.class-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.class-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.class-group .count {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.piqi-results section,
+.what-to-do section {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.result-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 8px 0 12px;
+}
+
+.technical-group {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.technical-group summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-h);
+  margin-bottom: 10px;
+}
