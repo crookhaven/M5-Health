@@ -7,6 +7,8 @@ const initialState = {
   assertions: [],
   findingDecisions: {},
   sharingSelection: {},
+  // The parsed PIQI Gateway result the patient pasted in, linked to records.
+  gatewayResult: null,
 }
 
 function loadInitialState() {
@@ -48,6 +50,8 @@ function reducer(state, action) {
           [action.domain]: action.value,
         },
       }
+    case 'SET_GATEWAY_RESULT':
+      return { ...state, gatewayResult: action.result }
     case 'RESET':
       return initialState
     default:
@@ -74,6 +78,7 @@ export function WorkspaceProvider({ children }) {
     addAssertion: (assertion) => dispatch({ type: 'ADD_ASSERTION', assertion }),
     setFindingDecision: (findingId, status) =>
       dispatch({ type: 'SET_FINDING_DECISION', findingId, status }),
+    setGatewayResult: (result) => dispatch({ type: 'SET_GATEWAY_RESULT', result }),
     setSharing: (domain, value) => dispatch({ type: 'SET_SHARING', domain, value }),
     reset: () => dispatch({ type: 'RESET' }),
   }

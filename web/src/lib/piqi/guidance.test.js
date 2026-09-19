@@ -13,6 +13,16 @@ describe('withGuidance', () => {
     expect(g.nextStep).toMatch(/pill bottle/i)
   })
 
+  it('explains that a strength in the name is not the amount taken each time', () => {
+    const g = withGuidance({
+      ...base, id: 'a2', domain: 'medications', dimension: 'completeness',
+      field: 'doseAmount', title: 'Lisinopril 10 MG Oral Tablet: dose amount missing',
+    })
+    expect(g.route).toBe(ROUTE_FIX)
+    expect(g.explanation).toMatch(/strength \(10 MG\)/)
+    expect(g.explanation).toMatch(/each time or how often/)
+  })
+
   it('sends a missing lab value to the provider, never the patient', () => {
     const g = withGuidance({
       ...base, id: 'b', domain: 'labResults', dimension: 'completeness',

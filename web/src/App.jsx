@@ -4,6 +4,8 @@ import { WorkspaceProvider, useWorkspace } from './state/WorkspaceContext'
 import ImportPanel from './components/ImportPanel'
 import Dashboard from './components/Dashboard'
 import FindingsPanel from './components/FindingsPanel'
+import PiqiResults from './components/PiqiResults'
+import WhatToDo from './components/WhatToDo'
 import Scorecard from './components/Scorecard'
 import SharePanel from './components/SharePanel'
 import { runPiqiAnalysis } from './lib/piqi/engine'
@@ -13,6 +15,8 @@ import './App.css'
 const TABS = [
   { key: 'import', label: 'Import' },
   { key: 'dashboard', label: 'Health Record' },
+  { key: 'piqi', label: 'PIQI Results' },
+  { key: 'whattodo', label: 'What to do' },
   { key: 'findings', label: 'Findings' },
   { key: 'scorecard', label: 'Scorecard' },
   { key: 'share', label: 'Share & Export' },
@@ -73,6 +77,8 @@ function AppContent() {
         {tab === 'dashboard' && (
           <Dashboard sourceRecords={sourceRecords} assertions={assertions} />
         )}
+        {tab === 'piqi' && <PiqiResults />}
+        {tab === 'whattodo' && <WhatToDo />}
         {tab === 'findings' && <FindingsPanel findings={findings} />}
         {tab === 'scorecard' && <Scorecard scorecard={scorecard} />}
         {tab === 'share' && (
