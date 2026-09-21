@@ -20,12 +20,22 @@ export const DEFAULT_USAGE = {
   genericDrugs: 0,
 }
 
+// The most a person could pay in a year, medical and drugs together. Plans that keep
+// drugs apart have two out-of-pocket maximums, so the two add up.
+export function totalMoop(plan) {
+  if (plan.moop === null || plan.moop === undefined) return null
+  return plan.moop + (plan.drugMoop ?? 0)
+}
+
 // One year for one plan: premiums plus what the patient pays for the expected
 // care, following the plan's deductible and capped at its out-of-pocket maximum.
+// When a plan keeps drugs apart, drugs have their own deductible and their own maximum.
 export function estimateYear(plan, usage) {
   const premiumYear = plan.premium === null ? null : Math.round(plan.premium * 12 * 100) / 100
-  let deductibleLeft = plan.deductible ?? 0
-  let outOfPocket = 0
+  let medicalDeductibleLeft = plan.deductible ?? 0
+  let drugDeductibleLeft = plan.drugDeductible ?? null
+  let medicalPaid = 0
+  let drugPaid = 0
   const notCovered = []
   const unknown = []
 
@@ -38,28 +48,40 @@ export function estimateYear(plan, usage) {
       continue
     }
     if (rule.notCovered) notCovered.push(service.label)
+    const isDrug = service.key === 'genericDrugs'
+    const ownDrugDeductible = isDrug && drugDeductibleLeft !== null
     for (let i = 0; i < count; i++) {
       const allowed = service.price
-      if (rule.notCovered) {
-        outOfPocket += allowed
-        continue
-      }
       let pay = 0
-      let remaining = allowed
-      if (rule.afterDeductible) {
-        const toDeductible = Math.min(remaining, deductibleLeft)
-        deductibleLeft -= toDeductible
-        pay += toDeductible
-        remaining -= toDeductible
-        if (remaining > 0) pay += rule.copay > 0 ? rule.copay : rule.rate * remaining
+      if (rule.notCovered) {
+        pay = allowed
       } else {
-        pay = rule.copay > 0 ? rule.copay : rule.rate * remaining
+        let remaining = allowed
+        if (rule.afterDeductible) {
+          const left = ownDrugDeductible ? drugDeductibleLeft : medicalDeductibleLeft
+          const toDeductible = Math.min(remaining, left)
+          if (ownDrugDeductible) drugDeductibleLeft -= toDeductible
+          else medicalDeductibleLeft -= toDeductible
+          pay += toDeductible
+          remaining -= toDeductible
+          if (remaining > 0) pay += rule.copay > 0 ? rule.copay : rule.rate * remaining
+        } else {
+          pay = rule.copay > 0 ? rule.copay : rule.rate * remaining
+        }
       }
-      outOfPocket += pay
+      if (isDrug) drugPaid += pay
+      else medicalPaid += pay
     }
   }
 
-  if (plan.moop !== null) outOfPocket = Math.min(outOfPocket, plan.moop)
+  let outOfPocket
+  if (plan.drugMoop !== null && plan.drugMoop !== undefined) {
+    outOfPocket =
+      Math.min(medicalPaid, plan.moop ?? Infinity) + Math.min(drugPaid, plan.drugMoop)
+  } else {
+    outOfPocket = medicalPaid + drugPaid
+    if (plan.moop !== null && plan.moop !== undefined) outOfPocket = Math.min(outOfPocket, plan.moop)
+  }
   outOfPocket = Math.round(outOfPocket * 100) / 100
   return {
     premiumYear,
@@ -96,7 +118,7 @@ export function coverageScores(plans, meds) {
     const nums = values.filter((v) => v !== null)
     return nums.length ? { min: Math.min(...nums), max: Math.max(...nums) } : null
   }
-  const moops = range(plans.map((p) => p.plan.moop))
+  const moops = range(plans.map((p) => totalMoop(p.plan)))
   const deds = range(plans.map((p) => p.plan.deductible))
   const lowerIsBetter = (value, r) =>
     value === null || !r ? 0.5 : r.max === r.min ? 1 : 1 - (value - r.min) / (r.max - r.min)
@@ -106,7 +128,7 @@ export function coverageScores(plans, meds) {
     const medPart = med.checked && med.total > 0 ? med.covered / med.total : 0.5
     const parts = {
       medicines: 50 * medPart,
-      outOfPocketMax: 20 * lowerIsBetter(plan.moop, moops),
+      outOfPocketMax: 20 * lowerIsBetter(totalMoop(plan), moops),
       deductible: 15 * lowerIsBetter(plan.deductible, deds),
       quality: 15 * ((plan.qualityRating ?? 2.5) / 5),
     }

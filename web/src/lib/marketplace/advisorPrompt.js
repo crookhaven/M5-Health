@@ -17,8 +17,8 @@ export function buildAdvisorPrompt({ include, usage, rows, budget }) {
       `Plan ${i + 1}: ${plan.name}${plan.issuer ? ` (${plan.issuer})` : ''}`,
       `- Metal level / type: ${plan.metalLevel ?? 'not listed'} / ${plan.type ?? 'not listed'}`,
       `- Monthly premium: ${money(plan.premium)}`,
-      `- Deductible (you, in-network): ${money(plan.deductible)}`,
-      `- Out-of-pocket maximum (you, in-network): ${money(plan.moop)}`,
+      `- Deductible (you, in-network): ${plan.drugDeductible == null ? money(plan.deductible) : `${money(plan.deductible)} medical + ${money(plan.drugDeductible)} drugs (kept separate)`}`,
+      `- Out-of-pocket maximum (you, in-network): ${plan.drugMoop == null ? money(plan.moop) : `${money(plan.moop)} medical + ${money(plan.drugMoop)} drugs (kept separate)`}`,
     ]
     for (const [key, label] of [
       ['primaryCare', 'Primary care visit'],

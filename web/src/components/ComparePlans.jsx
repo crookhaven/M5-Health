@@ -31,6 +31,12 @@ const DOCUMENT_LINKS = [
   ['network', 'Doctors and hospitals'],
 ]
 
+// "$7,500", or "$7,500 medical + $0 drugs" when the plan keeps drugs apart.
+function withDrugs(medical, drug) {
+  if (drug === null || drug === undefined) return money(medical)
+  return `${money(medical)} medical + ${money(drug)} drugs`
+}
+
 function DocLink({ href, children }) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer">
@@ -140,8 +146,14 @@ export default function ComparePlans() {
     { label: 'Metal level', get: ({ plan }) => plan.metalLevel ?? NOT_LISTED },
     { label: 'Plan type', get: ({ plan }) => plan.type ?? NOT_LISTED },
     { label: 'Monthly premium', get: ({ plan }) => money2(plan.premium) },
-    { label: 'Deductible (you, in-network)', get: ({ plan }) => money(plan.deductible) },
-    { label: 'Out-of-pocket maximum (you, in-network)', get: ({ plan }) => money(plan.moop) },
+    {
+      label: 'Deductible (you, in-network)',
+      get: ({ plan }) => withDrugs(plan.deductible, plan.drugDeductible),
+    },
+    {
+      label: 'Out-of-pocket maximum (you, in-network)',
+      get: ({ plan }) => withDrugs(plan.moop, plan.drugMoop),
+    },
     ...COMPARE_BENEFITS.map((b) => ({ label: b.label, get: ({ plan }) => plan.benefits[b.key] ?? NOT_LISTED })),
     {
       label: 'Summary of Benefits and Coverage (SBC)',

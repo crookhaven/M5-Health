@@ -138,3 +138,13 @@ describe('SBC links and examples', () => {
     expect(parsed.plans[0].sbc.url).toBe('https://example.org/sbc.pdf')
   })
 })
+
+describe('separate drug deductible and out-of-pocket maximum', () => {
+  it('leaves the sample plans (combined amounts) unchanged', () => {
+    const p = normalizePlan(sample.plans[0])
+    expect(p.drugDeductible).toBeNull()
+    expect(p.drugMoop).toBeNull()
+    expect(typeof p.deductible).toBe('number')
+    expect(typeof p.moop).toBe('number')
+  })
+})

@@ -68,3 +68,14 @@ describe('FHIR Bundle import', () => {
     expect(workspaceState().sourceRecords).toHaveLength(0)
   })
 })
+
+describe('Import panel notice', () => {
+  it('tells people not to import real health information', () => {
+    render(
+      <WorkspaceProvider>
+        <ImportPanel />
+      </WorkspaceProvider>,
+    )
+    expect(screen.getByText(/Do not import real health information/)).toBeInTheDocument()
+  })
+})

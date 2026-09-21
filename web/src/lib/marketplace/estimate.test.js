@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import sample from '../../data/sample_marketplace_plans.json'
 import { normalizePlan, parseDrugCoverage } from './normalize'
-import { DEFAULT_USAGE, coverageScores, estimateYear, medicationCoverage, pickPlans } from './estimate'
+import { DEFAULT_USAGE, coverageScores, estimateYear, medicationCoverage, pickPlans, totalMoop } from './estimate'
 import { buildAdvisorPrompt } from './advisorPrompt'
 import { summarizePatient } from './patientSummary'
 
@@ -145,5 +145,73 @@ describe('summarizePatient and buildAdvisorPrompt', () => {
     expect(text).toMatch(/\$9,000/)
     expect(text).not.toMatch(/Secretname|1980-01-01|Zed/)
     expect(text).not.toMatch(/Lisinopril/)
+  })
+})
+
+describe('plans that keep drugs apart from medical care', () => {
+  const list = (type, amount) => ({ type, amount, network_tier: 'In-Network', family_cost: 'Individual', individual: true })
+  const base = {
+    id: 'x',
+    name: 'Split plan',
+    premium: 100,
+    benefits: [
+      { name: 'Primary Care Visit to Treat an Injury or Illness', covered: true, cost_sharings: [{ network_tier: 'In-Network', copay_amount: 30, display_string: '$30 Copay' }] },
+      { name: 'Generic Drugs', covered: true, cost_sharings: [{ network_tier: 'In-Network', copay_amount: 10, display_string: '$10 Copay after deductible' }] },
+    ],
+  }
+  const combined = normalizePlan({
+    ...base,
+    deductibles: [list('Combined Medical and Drug EHB Deductible', 5000)],
+    moops: [list('Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)', 8000)],
+  })
+  const split = normalizePlan({
+    ...base,
+    deductibles: [list('Medical EHB Deductible', 5000), list('Drug EHB Deductible', 0)],
+    moops: [list('Maximum Out of Pocket for Medical EHB Benefits', 7000), list('Maximum Out of Pocket for Drug EHB Benefits', 100)],
+  })
+  const use = { ...DEFAULT_USAGE, primaryCare: 3, specialist: 0, urgentCare: 0, genericDrugs: 24 }
+
+  it('reads separate drug amounts only when the plan keeps them apart', () => {
+    expect(combined.deductible).toBe(5000)
+    expect(combined.drugDeductible).toBeNull()
+    expect(combined.moop).toBe(8000)
+    expect(combined.drugMoop).toBeNull()
+    expect(split.deductible).toBe(5000)
+    expect(split.drugDeductible).toBe(0)
+    expect(split.moop).toBe(7000)
+    expect(split.drugMoop).toBe(100)
+  })
+
+  it('does not run drugs through the medical deductible when they have their own', () => {
+    const splitDeductibleOnly = normalizePlan({
+      ...base,
+      deductibles: [list('Medical EHB Deductible', 5000), list('Drug EHB Deductible', 0)],
+      moops: [list('Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)', 8000)],
+    })
+    // combined: 24 fills of $20 all go to the $5,000 deductible = $480, plus $90 of visits
+    expect(estimateYear(combined, use).outOfPocket).toBe(570)
+    // separate $0 drug deductible: 24 fills of a $10 copay = $240, plus $90 of visits
+    expect(estimateYear(splitDeductibleOnly, use).outOfPocket).toBe(330)
+  })
+
+  it('caps drugs at the drug maximum and medical care at the medical maximum', () => {
+    // drugs would cost $240 but the drug maximum is $100, plus $90 of visits
+    expect(estimateYear(split, use).outOfPocket).toBe(190)
+  })
+
+  it('adds the two maximums for the coverage score', () => {
+    expect(totalMoop(split)).toBe(7100)
+    expect(totalMoop(combined)).toBe(8000)
+    expect(totalMoop({ moop: null })).toBeNull()
+  })
+
+  it('shows both amounts in the summary for Claude', () => {
+    const text = buildAdvisorPrompt({
+      include: { conditions: [], medications: [], procedures: [] },
+      usage: use,
+      rows: [{ plan: split, est: estimateYear(split, use), med: { checked: false, covered: 0, total: 0, missing: [], unknown: [] }, score: { total: 50 } }],
+      budget: null,
+    })
+    expect(text).toMatch(/\$5,000 medical \+ \$0 drugs \(kept separate\)/)
   })
 })

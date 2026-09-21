@@ -94,6 +94,25 @@ function amountFrom(list, preferType) {
   return items.length ? items[0].amount : null
 }
 
+// Same, but only for entries whose type matches (and does not match the exclusion).
+function amountByType(list, include, exclude = null) {
+  const items = (list ?? []).filter((d) => include.test(d.type ?? '') && !(exclude && exclude.test(d.type ?? '')))
+  return amountFrom(items, null)
+}
+
+// Some plans have one deductible / out-of-pocket maximum for medical care and drugs together,
+// others keep drugs separate. Returns the medical (or combined) amount, plus a drug amount
+// only when the plan really keeps drugs apart.
+function splitAmounts(list, { combined, medical, drug, drugExclude }) {
+  const both = amountByType(list, combined)
+  const med = amountByType(list, medical)
+  const dr = amountByType(list, drug, drugExclude)
+  return {
+    main: both ?? med ?? amountFrom(list, null),
+    drug: both === null && med !== null && dr !== null ? dr : null,
+  }
+}
+
 // Only web links from a plans file are shown as links (never javascript: and the like).
 export function safeUrl(value) {
   return typeof value === 'string' && /^https?:\/\//i.test(value.trim()) ? value.trim() : null
@@ -130,7 +149,7 @@ function scenarioTotal(parts) {
 // otherwise from the CMS Plan Attributes file that the fetch script saves as _sbc.
 function sbcInfo(plan, sbcFile) {
   const id = String(plan.id ?? '')
-  const fromFile = sbcFile ? (sbcFile[id] ?? sbcFile[id.slice(0, 14)] ?? null) : null
+  const fromFile = sbcFile && typeof sbcFile === 'object' ? (sbcFile[id] ?? sbcFile[id.slice(0, 14)] ?? null) : null
   const examples = {}
   for (const ex of SBC_EXAMPLES) {
     examples[ex.key] = scenarioTotal(plan.sbcs?.[ex.apiKey]) ?? scenarioTotal(fromFile?.examples?.[ex.key])
@@ -145,6 +164,13 @@ export function normalizePlan(plan, sbcFile = null) {
     benefits[b.key] = benefitText(plan, b.match)
     rules[b.key] = costRule((plan.benefits ?? []).find((x) => b.match.test(x.name ?? '')))
   }
+  const ded = splitAmounts(plan.deductibles, { combined: /combined/i, medical: /^medical/i, drug: /^drug/i })
+  const moops = splitAmounts(plan.moops, {
+    combined: /total|combined|medical and drug/i,
+    medical: /medical ehb/i,
+    drug: /drug ehb/i,
+    drugExclude: /total|combined|medical and drug/i,
+  })
   return {
     id: plan.id ?? plan.name,
     name: fixMojibake(plan.name) ?? 'Unnamed plan',
@@ -153,8 +179,10 @@ export function normalizePlan(plan, sbcFile = null) {
     type: plan.type ?? null,
     premium: typeof plan.premium === 'number' ? plan.premium : null,
     premiumWithCredit: typeof plan.premium_w_credit === 'number' ? plan.premium_w_credit : null,
-    deductible: amountFrom(plan.deductibles, /combined|medical/i),
-    moop: amountFrom(plan.moops, /combined|medical/i),
+    deductible: ded.main,
+    drugDeductible: ded.drug,
+    moop: moops.main,
+    drugMoop: moops.drug,
     hsaEligible: typeof plan.hsa_eligible === 'boolean' ? plan.hsa_eligible : null,
     qualityRating: typeof plan.quality_rating?.global_rating === 'number' ? plan.quality_rating.global_rating : null,
     hasNationalNetwork: typeof plan.has_national_network === 'boolean' ? plan.has_national_network : null,

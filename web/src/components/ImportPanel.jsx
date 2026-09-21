@@ -403,6 +403,11 @@ function ShlImport() {
 export default function ImportPanel() {
   return (
     <div className="import-panel">
+      <p className="local-note">
+        <strong>Demo only.</strong> Use synthetic (made-up) data. Do not import real health
+        information (PHI) here. A PIQI score comes from the PIQI Gateway, an outside service, and a
+        summary you paste into Claude also leaves this app.
+      </p>
       <SampleImport />
       <CoverageImport />
       <FhirBundleImport />
