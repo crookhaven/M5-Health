@@ -1,0 +1,610 @@
+{
+  "_note": "SAMPLE DATA ONLY. These plans, issuer names and prices are invented to show the comparison screen. They are not real Marketplace plans. Shaped like the CMS Marketplace API (POST /plans/search) response.",
+  "_household": {
+    "label": "Synthetic demo household",
+    "age": 41,
+    "gender": "Female",
+    "uses_tobacco": false,
+    "zipcode": "48201",
+    "countyfips": "26163",
+    "state": "MI",
+    "source": "Age and sex from the sample health record patient Jordan Rivera; ZIP is made up."
+  },
+  "plans": [
+    {
+      "id": "SAMPLE0001MI0010001",
+      "name": "Sample Bronze Saver",
+      "premium": 312.4,
+      "premium_w_credit": 312.4,
+      "metal_level": "Bronze",
+      "type": "HMO",
+      "state": "MI",
+      "issuer": {
+        "name": "Sample Health Co. (invented)",
+        "state": "MI"
+      },
+      "benefits": [
+        {
+          "name": "Primary Care Visit to Treat an Injury or Illness",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 0,
+              "copay_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Specialist Visit",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.5,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Emergency Room Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.5,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Urgent Care Centers Or Facilities",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.5,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Generic Drugs",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 20,
+              "copay_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Mental/Behavioral Health Outpatient Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 45,
+              "copay_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        }
+      ],
+      "deductibles": [
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 7500,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        },
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 15000,
+          "family_cost": "Family",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "moops": [
+        {
+          "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)",
+          "amount": 9100,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "hsa_eligible": false,
+      "quality_rating": {
+        "global_rating": 3
+      },
+      "has_national_network": false,
+      "brochure_url": "",
+      "benefits_url": "",
+      "formulary_url": "",
+      "network_url": ""
+    },
+    {
+      "id": "SAMPLE0002MI0010001",
+      "name": "Sample Silver Balanced",
+      "premium": 428.9,
+      "premium_w_credit": 428.9,
+      "metal_level": "Silver",
+      "type": "PPO",
+      "state": "MI",
+      "issuer": {
+        "name": "Sample Health Co. (invented)",
+        "state": "MI"
+      },
+      "benefits": [
+        {
+          "name": "Primary Care Visit to Treat an Injury or Illness",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 30
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Specialist Visit",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 70
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Emergency Room Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.3,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Urgent Care Centers Or Facilities",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.3,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Generic Drugs",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 15
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Mental/Behavioral Health Outpatient Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 30
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        }
+      ],
+      "deductibles": [
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 4200,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        },
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 8400,
+          "family_cost": "Family",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "moops": [
+        {
+          "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)",
+          "amount": 8700,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "hsa_eligible": false,
+      "quality_rating": {
+        "global_rating": 4
+      },
+      "has_national_network": true,
+      "brochure_url": "",
+      "benefits_url": "",
+      "formulary_url": "",
+      "network_url": ""
+    },
+    {
+      "id": "SAMPLE0003MI0010001",
+      "name": "Sample Gold HSA",
+      "premium": 521.7,
+      "premium_w_credit": 521.7,
+      "metal_level": "Gold",
+      "type": "PPO",
+      "state": "MI",
+      "issuer": {
+        "name": "Sample Health Co. (invented)",
+        "state": "MI"
+      },
+      "benefits": [
+        {
+          "name": "Primary Care Visit to Treat an Injury or Illness",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.2,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Specialist Visit",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.2,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Emergency Room Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.2,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Urgent Care Centers Or Facilities",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.2,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Generic Drugs",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 10,
+              "copay_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Mental/Behavioral Health Outpatient Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "coinsurance_rate": 0.2,
+              "coinsurance_options": "after deductible"
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        }
+      ],
+      "deductibles": [
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 1800,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        },
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 3600,
+          "family_cost": "Family",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "moops": [
+        {
+          "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)",
+          "amount": 6500,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "hsa_eligible": true,
+      "quality_rating": {
+        "global_rating": 4
+      },
+      "has_national_network": false,
+      "brochure_url": "",
+      "benefits_url": "",
+      "formulary_url": "",
+      "network_url": ""
+    },
+    {
+      "id": "SAMPLE0004MI0010001",
+      "name": "Sample Platinum Plus",
+      "premium": 689.2,
+      "premium_w_credit": 689.2,
+      "metal_level": "Platinum",
+      "type": "EPO",
+      "state": "MI",
+      "issuer": {
+        "name": "Sample Health Co. (invented)",
+        "state": "MI"
+      },
+      "benefits": [
+        {
+          "name": "Primary Care Visit to Treat an Injury or Illness",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 15
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Specialist Visit",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 30
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Emergency Room Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 150
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Urgent Care Centers Or Facilities",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 250
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Generic Drugs",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 5
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        },
+        {
+          "name": "Mental/Behavioral Health Outpatient Services",
+          "covered": true,
+          "cost_sharings": [
+            {
+              "network_tier": "In-Network",
+              "copay_amount": 15
+            },
+            {
+              "network_tier": "Out-of-Network",
+              "coinsurance_rate": 0.5
+            }
+          ],
+          "explanation": "",
+          "limit_quantity": null
+        }
+      ],
+      "deductibles": [
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 0,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        },
+        {
+          "type": "Combined Medical and Drug EHB Deductible",
+          "amount": 0,
+          "family_cost": "Family",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "moops": [
+        {
+          "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)",
+          "amount": 4000,
+          "family_cost": "Individual",
+          "network_tier": "In-Network",
+          "csr": null
+        }
+      ],
+      "hsa_eligible": false,
+      "quality_rating": {
+        "global_rating": 5
+      },
+      "has_national_network": true,
+      "brochure_url": "",
+      "benefits_url": "",
+      "formulary_url": "",
+      "network_url": ""
+    }
+  ],
+  "total": 4
+}
