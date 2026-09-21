@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import sampleFile from '../data/sample_marketplace_plans.json'
-import { COMPARE_BENEFITS, parsePlansFile } from '../lib/marketplace/normalize'
+import { COMPARE_BENEFITS, SBC_EXAMPLES, parsePlansFile } from '../lib/marketplace/normalize'
 import {
   DEFAULT_USAGE,
   SERVICES,
@@ -23,6 +23,32 @@ const money2 = (n) =>
   n === null || n === undefined ? NOT_LISTED : `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
 
 const sample = parsePlansFile(JSON.stringify(sampleFile))
+
+const DOCUMENT_LINKS = [
+  ['benefits', 'Benefits'],
+  ['brochure', 'Brochure'],
+  ['formulary', 'Drug list'],
+  ['network', 'Doctors and hospitals'],
+]
+
+function DocLink({ href, children }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  )
+}
+
+function documentLinks(plan) {
+  const items = DOCUMENT_LINKS.filter(([key]) => plan.links[key])
+  if (items.length === 0) return NOT_LISTED
+  return items.map(([key, text], i) => (
+    <span key={key}>
+      {i > 0 ? ' \u00b7 ' : ''}
+      <DocLink href={plan.links[key]}>{text}</DocLink>
+    </span>
+  ))
+}
 
 function medText(med) {
   if (med.total === 0) return 'No coded medicines to check'
@@ -70,6 +96,7 @@ export default function ComparePlans() {
   const chosen = rowsAll.filter((r) => selected.includes(r.plan.id))
   const picks = pickPlans(visible, budget)
   const isSample = source === 'sample'
+  const sbcCount = data.plans.filter((p) => p.sbc.url).length
 
   function handleFile(event) {
     const file = event.target.files?.[0]
@@ -116,6 +143,15 @@ export default function ComparePlans() {
     { label: 'Deductible (you, in-network)', get: ({ plan }) => money(plan.deductible) },
     { label: 'Out-of-pocket maximum (you, in-network)', get: ({ plan }) => money(plan.moop) },
     ...COMPARE_BENEFITS.map((b) => ({ label: b.label, get: ({ plan }) => plan.benefits[b.key] ?? NOT_LISTED })),
+    {
+      label: 'Summary of Benefits and Coverage (SBC)',
+      get: ({ plan }) => (plan.sbc.url ? <DocLink href={plan.sbc.url}>Open the SBC</DocLink> : NOT_LISTED),
+    },
+    ...SBC_EXAMPLES.map((ex) => ({
+      label: `SBC example: ${ex.label} (you pay)`,
+      get: ({ plan }) => money(plan.sbc.examples[ex.key]),
+    })),
+    { label: 'Other plan documents', get: ({ plan }) => documentLinks(plan) },
     { label: 'HSA eligible', get: ({ plan }) => (plan.hsaEligible === null ? NOT_LISTED : plan.hsaEligible ? 'Yes' : 'No') },
     { label: 'Quality rating (stars of 5)', get: ({ plan }) => plan.qualityRating ?? NOT_LISTED },
     { label: 'National network', get: ({ plan }) => (plan.hasNationalNetwork === null ? NOT_LISTED : plan.hasNationalNetwork ? 'Yes' : 'No') },
@@ -135,7 +171,10 @@ export default function ComparePlans() {
         </p>
       ) : (
         <p className="local-note">
-          Showing {data.plans.length} plans from {source}.
+          Showing {data.plans.length} plans from {source}.{' '}
+          {sbcCount > 0
+            ? `SBC links found for ${sbcCount} of ${data.plans.length} plans.`
+            : 'This file has no SBC links. Run the latest fetch script to add them.'}
         </p>
       )}
       {data.household && (
@@ -286,6 +325,11 @@ export default function ComparePlans() {
       <p className="local-note">
         Costs shown are for one person, in-network, as the Marketplace API reports them. Check the
         plan&apos;s own documents before choosing. This is not advice.
+      </p>
+      <p className="local-note">
+        The SBC examples are the standard scenarios every insurer must show (having a baby, managing
+        diabetes, treating a simple fracture). They help you compare plans side by side, but they are
+        not an estimate for you. Open the SBC for the full details.
       </p>
     </section>
   )

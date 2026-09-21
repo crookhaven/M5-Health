@@ -62,6 +62,39 @@ describe('ComparePlans', () => {
     expect(text).toMatch(/Possible future needs/)
   })
 
+  it('shows SBC rows, "Not listed" when the file has none', () => {
+    renderCompare()
+    const table = screen.getByRole('table')
+    expect(
+      within(table).getByRole('rowheader', { name: 'Summary of Benefits and Coverage (SBC)' }),
+    ).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: /SBC example: Having a baby/ })).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: 'Other plan documents' })).toBeInTheDocument()
+  })
+
+  it('links each plan to its SBC when the file has them, and refuses unsafe links', async () => {
+    const user = userEvent.setup()
+    renderCompare()
+    const plans = [
+      { id: '11111MI0010001', name: 'Plan One', premium: 300, benefits_url: 'javascript:alert(1)' },
+      { id: '22222MI0010001', name: 'Plan Two', premium: 400 },
+    ]
+    const sbc = {
+      '11111MI0010001': {
+        url: 'https://example.org/plan-one-sbc.pdf',
+        examples: { baby: { deductible: '$1,500.00', copayment: '$40.00', coinsurance: '$200.00', limit: '$0.00' } },
+      },
+    }
+    const file = new File([JSON.stringify({ plans, _sbc: sbc })], 'plans.json', { type: 'application/json' })
+    await user.upload(screen.getByLabelText(/load plans file/i), file)
+    const link = await screen.findByRole('link', { name: 'Open the SBC' })
+    expect(link).toHaveAttribute('href', 'https://example.org/plan-one-sbc.pdf')
+    expect(screen.getAllByRole('link', { name: 'Open the SBC' })).toHaveLength(1)
+    expect(screen.getByText(/SBC links found for 1 of 2 plans/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Benefits' })).not.toBeInTheDocument()
+    expect(screen.getByText('$1,740')).toBeInTheDocument()
+  })
+
   it('shows an error for a file with no plans', async () => {
     const user = userEvent.setup()
     renderCompare()

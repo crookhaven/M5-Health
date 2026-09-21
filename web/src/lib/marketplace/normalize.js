@@ -94,7 +94,51 @@ function amountFrom(list, preferType) {
   return items.length ? items[0].amount : null
 }
 
-export function normalizePlan(plan) {
+// Only web links from a plans file are shown as links (never javascript: and the like).
+export function safeUrl(value) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value.trim()) ? value.trim() : null
+}
+
+function dollars(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (value && typeof value === 'object') return dollars(value.amount)
+  if (typeof value === 'string') {
+    const digits = value.replace(/[^0-9.]/g, '')
+    const n = parseFloat(digits)
+    return digits !== '' && Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+// The standard scenarios every Summary of Benefits and Coverage (SBC) shows.
+export const SBC_EXAMPLES = [
+  { key: 'baby', apiKey: 'baby', label: 'Having a baby' },
+  { key: 'diabetes', apiKey: 'diabetes', label: 'Managing diabetes' },
+  { key: 'simplefracture', apiKey: 'fracture', label: 'Treating a simple fracture' },
+]
+
+// What the person would pay in one SBC scenario: deductible + copays + coinsurance + limits.
+function scenarioTotal(parts) {
+  if (!parts || typeof parts !== 'object') return null
+  const nums = ['deductible', 'copay', 'copayment', 'coinsurance', 'limit']
+    .map((k) => dollars(parts[k]))
+    .filter((n) => n !== null)
+  return nums.length ? nums.reduce((a, b) => a + b, 0) : null
+}
+
+// SBC link and example costs. The example costs come from the API's "sbcs" when it has them,
+// otherwise from the CMS Plan Attributes file that the fetch script saves as _sbc.
+function sbcInfo(plan, sbcFile) {
+  const id = String(plan.id ?? '')
+  const fromFile = sbcFile ? (sbcFile[id] ?? sbcFile[id.slice(0, 14)] ?? null) : null
+  const examples = {}
+  for (const ex of SBC_EXAMPLES) {
+    examples[ex.key] = scenarioTotal(plan.sbcs?.[ex.apiKey]) ?? scenarioTotal(fromFile?.examples?.[ex.key])
+  }
+  return { url: safeUrl(fromFile?.url), examples }
+}
+
+export function normalizePlan(plan, sbcFile = null) {
   const benefits = {}
   const rules = {}
   for (const b of COMPARE_BENEFITS) {
@@ -117,11 +161,12 @@ export function normalizePlan(plan) {
     benefits,
     rules,
     links: {
-      brochure: plan.brochure_url || null,
-      benefits: plan.benefits_url || null,
-      formulary: plan.formulary_url || null,
-      network: plan.network_url || null,
+      brochure: safeUrl(plan.brochure_url),
+      benefits: safeUrl(plan.benefits_url),
+      formulary: safeUrl(plan.formulary_url),
+      network: safeUrl(plan.network_url),
     },
+    sbc: sbcInfo(plan, sbcFile),
   }
 }
 
@@ -156,10 +201,11 @@ export function parsePlansFile(text) {
   if (!Array.isArray(list) || list.length === 0) {
     throw new Error('No plans found. Expect a Marketplace API result with a "plans" list.')
   }
+  const sbcFile = data?._sbc && typeof data._sbc === 'object' ? data._sbc : null
   return {
     note: typeof data?._note === 'string' ? data._note : null,
     household: data?._household ?? null,
     drugCoverage: parseDrugCoverage(data?._drug_coverage),
-    plans: list.map(normalizePlan),
+    plans: list.map((plan) => normalizePlan(plan, sbcFile)),
   }
 }

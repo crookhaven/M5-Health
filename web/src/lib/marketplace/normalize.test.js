@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import sample from '../../data/sample_marketplace_plans.json'
-import { costText, fixMojibake, normalizePlan, parsePlansFile } from './normalize'
+import { costText, fixMojibake, normalizePlan, parsePlansFile, safeUrl } from './normalize'
 
 describe('costText', () => {
   it('words copays and coinsurance', () => {
@@ -83,5 +83,58 @@ describe('fixMojibake', () => {
   it('reads a file that starts with a byte-order mark', () => {
     const text = '\uFEFF' + JSON.stringify({ plans: [{ name: 'A' }] })
     expect(parsePlansFile(text).plans).toHaveLength(1)
+  })
+})
+
+describe('SBC links and examples', () => {
+  const base = { id: '11111MI0010001', name: 'Plan One' }
+  const file = {
+    '11111MI0010001': {
+      url: 'https://example.org/sbc.pdf',
+      examples: {
+        baby: { deductible: '$1,500.00', copayment: '$40.00', coinsurance: '$200.00', limit: '$0.00' },
+        diabetes: { deductible: 'Not Applicable' },
+      },
+    },
+  }
+
+  it('only accepts web links', () => {
+    expect(safeUrl('https://example.org/a')).toBe('https://example.org/a')
+    expect(safeUrl('javascript:alert(1)')).toBeNull()
+    expect(safeUrl('')).toBeNull()
+    expect(safeUrl(undefined)).toBeNull()
+    expect(normalizePlan({ ...base, brochure_url: 'javascript:alert(1)' }).links.brochure).toBeNull()
+  })
+
+  it('reads the SBC link and adds up the example cost from the CMS file', () => {
+    const p = normalizePlan(base, file)
+    expect(p.sbc.url).toBe('https://example.org/sbc.pdf')
+    expect(p.sbc.examples.baby).toBe(1740)
+    expect(p.sbc.examples.diabetes).toBeNull()
+    expect(p.sbc.examples.simplefracture).toBeNull()
+  })
+
+  it('matches on the 14-character plan id when the file is keyed that way', () => {
+    const p = normalizePlan({ ...base, id: '11111MI0010001-00' }, file)
+    expect(p.sbc.url).toBe('https://example.org/sbc.pdf')
+  })
+
+  it('prefers the API sbcs numbers when the plan has them', () => {
+    const plan = {
+      ...base,
+      sbcs: { baby: { deductible: { amount: 1000 }, copay: { amount: 100 }, coinsurance: { amount: 50 }, limit: { amount: 0 } } },
+    }
+    expect(normalizePlan(plan, file).sbc.examples.baby).toBe(1150)
+  })
+
+  it('shows nothing rather than guessing when there is no SBC information', () => {
+    const p = normalizePlan(base)
+    expect(p.sbc.url).toBeNull()
+    expect(p.sbc.examples.baby).toBeNull()
+  })
+
+  it('passes the _sbc block through parsePlansFile', () => {
+    const parsed = parsePlansFile(JSON.stringify({ plans: [base], _sbc: file }))
+    expect(parsed.plans[0].sbc.url).toBe('https://example.org/sbc.pdf')
   })
 })
