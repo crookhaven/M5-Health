@@ -57,6 +57,22 @@ describe('App', () => {
     expect(screen.getByText(/run your piqi score first/i)).toBeInTheDocument()
   })
 
+  it('moves the selected patient up and down in the patient list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Add patient' }))
+    await user.type(screen.getByLabelText(/new patient name/i), 'Sam')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    const order = () => screen.getAllByRole('option').map((o) => o.textContent)
+    expect(order()).toEqual(['Patient 1', 'Sam'])
+    expect(screen.getByRole('button', { name: 'Move Sam down' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Move Sam up' }))
+    expect(order()).toEqual(['Sam', 'Patient 1'])
+    expect(screen.getByRole('button', { name: 'Move Sam up' })).toBeDisabled()
+    expect(screen.getByRole('combobox')).toHaveDisplayValue('Sam')
+  })
+
   it('keeps each patient records separate', async () => {
     const user = userEvent.setup()
     render(<App />)

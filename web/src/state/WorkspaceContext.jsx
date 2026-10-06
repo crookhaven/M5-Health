@@ -32,6 +32,7 @@ export function WorkspaceProvider({ children }) {
     addPatient: (name) => dispatch({ type: 'ADD_PATIENT', name }),
     selectPatient: (id) => dispatch({ type: 'SELECT_PATIENT', id }),
     renamePatient: (id, name) => dispatch({ type: 'RENAME_PATIENT', id, name }),
+    movePatient: (id, offset) => dispatch({ type: 'MOVE_PATIENT', id, offset }),
     removePatient: (id) => dispatch({ type: 'REMOVE_PATIENT', id }),
     addRecords: (records) => dispatch({ type: 'ADD_RECORDS', records }),
     addAssertion: (assertion) => dispatch({ type: 'ADD_ASSERTION', assertion }),

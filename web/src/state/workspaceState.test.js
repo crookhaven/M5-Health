@@ -105,6 +105,30 @@ describe('workspaceState', () => {
     expect(activeSlice(s).gatewayResults.clinical.score).toBe(70)
   })
 
+  it('moves a patient up or down in the list, keeping their data and selection', () => {
+    let s = createInitialState()
+    s = reducer(s, { type: 'RENAME_PATIENT', id: s.activeId, name: 'Ana' })
+    s = reducer(s, { type: 'ADD_PATIENT', name: 'Ben' })
+    s = reducer(s, { type: 'ADD_PATIENT', name: 'Cal' })
+    s = reducer(s, { type: 'ADD_RECORDS', records: [med('c1')] })
+    const cal = s.activeId
+    const names = (state) => state.patients.map((p) => p.name)
+
+    s = reducer(s, { type: 'MOVE_PATIENT', id: cal, offset: -1 })
+    expect(names(s)).toEqual(['Ana', 'Cal', 'Ben'])
+    s = reducer(s, { type: 'MOVE_PATIENT', id: cal, offset: -1 })
+    expect(names(s)).toEqual(['Cal', 'Ana', 'Ben'])
+    // Already first: nothing changes.
+    expect(reducer(s, { type: 'MOVE_PATIENT', id: cal, offset: -1 })).toBe(s)
+    s = reducer(s, { type: 'MOVE_PATIENT', id: cal, offset: 1 })
+    expect(names(s)).toEqual(['Ana', 'Cal', 'Ben'])
+
+    expect(s.activeId).toBe(cal)
+    expect(activeSlice(s).sourceRecords.map((r) => r.id)).toEqual(['c1'])
+    // The order is saved.
+    expect(names(loadState(JSON.stringify(s)))).toEqual(['Ana', 'Cal', 'Ben'])
+  })
+
   it('loads saved state, legacy state, and bad input', () => {
     const saved = reducer(createInitialState(), { type: 'ADD_RECORDS', records: [med('a')] })
     expect(activeSlice(loadState(JSON.stringify(saved))).sourceRecords).toHaveLength(1)
