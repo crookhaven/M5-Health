@@ -539,6 +539,15 @@ describe('normalizeFhirBundle - imaging, clinical notes and referrals', () => {
     expect(note.data.text).toBe('ALLERGIES\nPenicillin\tNausea\n\nASSESSMENT\nUncontrolled diabetes.')
   })
 
+  it('records whether a medicine is taken only as needed', () => {
+    const med = (id, dosage) => entry({ resourceType: 'MedicationRequest', id, status: 'active', intent: 'order', medicationCodeableConcept: { text: id }, dosageInstruction: [dosage] })
+    const mapped = normalizeFhirBundle({
+      resourceType: 'Bundle',
+      entry: [med('albuterol', { text: '2 puffs as needed', asNeededBoolean: true }), med('levothyroxine', { text: 'daily' })],
+    })
+    expect(mapped.map((r) => r.data.asNeeded)).toEqual(['Yes', undefined])
+  })
+
   it('keeps uncategorized Observations: measurements as labs, scores and findings as assessments', () => {
     const obs = (id, extra) => entry({ resourceType: 'Observation', id, status: 'final', code: { text: id }, ...extra })
     const mapped = normalizeFhirBundle({

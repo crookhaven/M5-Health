@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import sample from '../../data/sample_marketplace_plans.json'
 import { normalizePlan, parseDrugCoverage } from './normalize'
-import { DEFAULT_USAGE, coverageScores, estimateYear, medicationCoverage, pickPlans, totalMoop } from './estimate'
+import { DEFAULT_USAGE, coverageScores, estimatedFills, estimateYear, medicationCoverage, pickPlans, totalMoop } from './estimate'
 import { buildAdvisorPrompt } from './advisorPrompt'
 import { summarizePatient } from './patientSummary'
 
@@ -123,6 +123,58 @@ describe('summarizePatient and buildAdvisorPrompt', () => {
     expect(s.conditions[0].name).toBe('Type 2 diabetes')
     expect(s.medications[0]).toMatchObject({ name: 'Lisinopril 10 MG', rxcui: '29046' })
     expect(s.procedures[0].name).toBe('Appendectomy')
+  })
+
+  it('counts only current items, and each one once', () => {
+    const RX = 'http://www.nlm.nih.gov/research/umls/rxnorm'
+    const ICD = 'http://hl7.org/fhir/sid/icd-10-cm'
+    const CPT = 'http://www.ama-assn.org/go/cpt'
+    const s = summarizePatient(
+      [
+        rec('m1', 'medications', { medication: cc('levothyroxine 0.075 MG', [{ code: '966222', system: RX }]), requestStatus: cc('stopped') }),
+        rec('m2', 'medications', { medication: cc('levothyroxine 0.088 MG', [{ code: '966253', system: RX }]), requestStatus: cc('active') }),
+        rec('m3', 'medications', { medication: cc('prednisone 20 MG', [{ code: '312615', system: RX }]), requestStatus: cc('completed') }),
+        // A pharmacy claim for the active prescription, coded by NDC.
+        rec('m4', 'medications', { medication: cc('levothyroxine 0.088 MG', [{ code: '00378180701', system: 'http://hl7.org/fhir/sid/ndc' }]) }),
+        rec('c1', 'conditions', { condition: cc('Type 2 diabetes with neuropathy', [{ code: 'E11.42', system: ICD }]), clinicalStatus: cc('Active') }),
+        rec('c2', 'conditions', { condition: cc('Type 2 diabetes with hyperglycemia', [{ code: 'E11.65', system: ICD }]), conditionCategory: cc('Claim diagnosis') }),
+        rec('c3', 'conditions', { condition: cc('Routine adult exam', [{ code: 'Z00.00', system: ICD }]), conditionCategory: cc('Claim diagnosis') }),
+        rec('c4', 'conditions', { condition: cc('Acute bronchitis', [{ code: 'J20.9', system: ICD }]), clinicalStatus: cc('Resolved') }),
+        // The resolved bronchitis billed on a claim stays resolved.
+        rec('c5', 'conditions', { condition: cc('Acute bronchitis, unspecified', [{ code: 'J20.9', system: ICD }]), conditionCategory: cc('Claim diagnosis') }),
+        rec('p1', 'procedures', { procedure: cc('Spirometry', [{ code: '94010', system: CPT }]) }),
+        rec('p2', 'procedures', { procedure: cc('Spirometry', [{ code: '94010', system: CPT }]) }),
+        rec('p3', 'procedures', { procedure: cc('Office visit', [{ code: '99214', system: CPT }]) }),
+      ],
+      [],
+    )
+    expect(s.medications.map((m) => m.rxcui)).toEqual(['966253'])
+    expect(s.conditions.map((c) => c.name)).toEqual(['Type 2 diabetes with neuropathy'])
+    expect(s.procedures.map((p) => p.name)).toEqual(['Spirometry'])
+  })
+
+  it('keeps ended prescriptions out even when a pharmacy claim repeats them, but counts a restart', () => {
+    const RX = 'http://www.nlm.nih.gov/research/umls/rxnorm'
+    const NDC = 'http://hl7.org/fhir/sid/ndc'
+    const s = summarizePatient(
+      [
+        rec('a', 'medications', { medication: cc('clopidogrel 75 MG', [{ code: '309362', system: RX }]), requestStatus: cc('completed') }),
+        rec('b', 'medications', { medication: cc('clopidogrel 75 MG', [{ code: '00093731405', system: NDC }]) }),
+        rec('c', 'medications', { medication: cc('metformin 500 MG', [{ code: '861007', system: RX }]), requestStatus: cc('stopped') }),
+        rec('d', 'medications', { medication: cc('metformin 500 MG', [{ code: '861007', system: RX }]), requestStatus: cc('active') }),
+        rec('e', 'medications', { medication: cc('albuterol inhaler', [{ code: '2123076', system: RX }]), requestStatus: cc('active'), asNeeded: 'Yes' }),
+      ],
+      [],
+    )
+    expect(s.medications.map((m) => [m.name, m.asNeeded])).toEqual([
+      ['metformin 500 MG', false],
+      ['albuterol inhaler', true],
+    ])
+  })
+
+  it('estimates a monthly fill per regular medicine and two per as-needed one', () => {
+    expect(estimatedFills([{ asNeeded: false }, { asNeeded: false }, { asNeeded: true }])).toBe(12 + 12 + 2)
+    expect(estimatedFills([])).toBe(0)
   })
 
   it('builds a prompt with the chosen items and none of the identifying details', () => {

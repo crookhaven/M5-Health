@@ -5,6 +5,7 @@ import {
   DEFAULT_USAGE,
   SERVICES,
   coverageScores,
+  estimatedFills,
   estimateYear,
   medicationCoverage,
   pickPlans,
@@ -81,7 +82,7 @@ export default function ComparePlans() {
   const [copiedLine, setCopiedLine] = useState(false)
 
   const summary = useMemo(() => summarizePatient(sourceRecords, assertions), [sourceRecords, assertions])
-  const usage = { ...DEFAULT_USAGE, genericDrugs: summary.medications.length * 12, ...edits }
+  const usage = { ...DEFAULT_USAGE, genericDrugs: estimatedFills(summary.medications), ...edits }
   const budget = budgetText.trim() === '' || Number.isNaN(Number(budgetText)) ? null : Number(budgetText)
 
   const usageKey = JSON.stringify(usage)

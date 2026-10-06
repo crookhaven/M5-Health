@@ -40,6 +40,21 @@ care. 408 resources.
 | Notes | 12 (ED note, discharge summary, cardiology, primary care, behavioral health, sleep study, audiology, eye, dermatology, dental) |
 | Also | 122 observations (labs, vitals, hearing, vision, PHQ-9, GAD-7, AUDIT-C, smoking status), 22 medications, 8 immunizations, 23 procedures, 6 devices, 16 referrals, care team, 2 related people, medical/dental/vision coverage, 34 CARIN BB claims (inpatient institutional, professional, pharmacy with NDCs, oral, vision) |
 
+### Mavis Dracula (`MVD-SYN-0000000038-2`), 38 F
+
+A realistic, moderate record for a typical Marketplace shopper, built for testing Compare plans.
+114 resources.
+
+| Area | Content |
+|---|---|
+| Conditions | Mild persistent asthma, hypothyroidism, migraine without aura, generalized anxiety disorder, seasonal allergic rhinitis |
+| Medications | 6 active, all with RxNorm codes: levothyroxine 88 mcg, sertraline, sumatriptan, fluticasone inhaler, albuterol inhaler, fluticasone nasal spray. Plus a stopped levothyroxine 75 mcg (dose change) and a completed prednisone course |
+| Care | 7 visits in the past year (neurology, urgent care for an asthma flare, annual physical, well-woman exam, 2 therapy video visits, thyroid follow-up), labs, spirometry, Pap, 4 clinical notes, 3 referrals |
+| Coverage and claims | One Marketplace plan (Silver 4500 HMO); 8 professional claims. No pharmacy claims, so each medicine appears once |
+
+Her current medicines' RxNorm codes, for the Compare plans drug check:
+`$rxcuis = '966253','312941','313161','895994','2123076','1797907'`
+
 Codes were checked against RxNav (RxNorm, NDC), NLM Clinical Tables (LOINC, ICD-10-CM) and
 tx.fhir.org (SNOMED CT, CVX, ICD-10-PCS, v3-ActCode). Dental surface codes (`ex-surface`) could
 not be verified there and are labeled as such.
@@ -47,9 +62,12 @@ not be verified there and are labeled as such.
 ## Scripts
 
 - `lib/FhirBuilders.ps1`: shared building blocks (deterministic ids, JSON writer, attachments,
-  bundle checks) used by `maximus-decimus-meridius/build_maximus.ps1`.
-- `kimberly-gonzalez/build_kimberly_enriched.ps1`, `maximus-decimus-meridius/build_maximus.ps1`:
-  rebuild each bundle. IDs are deterministic, so links stay the same.
+  bundle checks).
+- `lib/ClinicalBuilders.ps1`: shared resource builders (encounters, conditions, medications,
+  observations, reports, notes, referrals, claims). Set `$IdPrefix` before dot-sourcing so
+  organization and practitioner identifiers are unique per patient; HAPI rejects duplicates.
+- `kimberly-gonzalez/build_kimberly_enriched.ps1`, `maximus-decimus-meridius/build_maximus.ps1`,
+  `mavis-dracula/build_mavis.ps1`: rebuild each bundle. IDs are deterministic, so links stay the same.
 - `kimberly-gonzalez/publish_to_hapi.ps1`: uploads a bundle to HAPI, in dependency-ordered
   batches for large bundles. Takes `-Bundle` and `-TransactionOut`.
 - `kimberly-gonzalez/make_shl.ps1`: builds a SMART Health Link (`-Bundle`, `-FileUrl`,

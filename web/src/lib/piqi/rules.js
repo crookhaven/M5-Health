@@ -258,6 +258,7 @@ export const DATE_FIELDS = {
 export const EXTRA_FIELDS = {
   allergies: ['reactionOnset'],
   conditions: ['encounter'],
+  medications: ['asNeeded'],
   labResults: ['bodySite'],
   vitalSigns: ['bodySite', 'performer'],
   healthAssessments: ['performer'],
@@ -267,6 +268,7 @@ export const EXTRA_FIELDS = {
 
 const EXTRA_FIELD_LABELS = {
   reactionOnset: 'reaction onset',
+  asNeeded: 'as needed',
   encounter: 'encounter',
   bodySite: 'body site',
   performer: 'performed by',
