@@ -1,3 +1,4 @@
+import { ungzip } from 'pako'
 import { codeableConcept, coding, observationValue, rangeValue } from '../piqi/attributeTypes'
 
 function ccFromConcept(concept) {
@@ -164,11 +165,21 @@ function normalizeAllergy(resource) {
       effectiveDate: resource.onsetDateTime ?? resource.recordedDate,
       clinicalStatus: ccFromConcept(resource.clinicalStatus),
       verificationStatus: ccFromConcept(resource.verificationStatus),
+      // Outside the PIQI model (EXTRA_FIELDS): shown, not sent to PIQI.
+      reactionOnset: reaction?.onset,
     },
   }
 }
 
-function normalizeCondition(resource) {
+// "Office visit 2026-07-12" for a condition's or note's encounter.
+function encounterLabel(ref, ctx) {
+  const encounter = resolveReference(ref, ctx)
+  if (encounter?.resourceType !== 'Encounter') return ref?.display
+  const kind = conceptText(encounter.type?.[0]) ?? encounter.class?.display ?? encounter.class?.code
+  return [kind, encounter.period?.start?.slice(0, 10)].filter(Boolean).join(' ') || ref?.display
+}
+
+function normalizeCondition(resource, ctx) {
   return {
     domain: 'conditions',
     data: {
@@ -181,6 +192,7 @@ function normalizeCondition(resource) {
       conditionCategory: ccFromConcept(resource.category?.[0]),
       assertedDate: resource.recordedDate,
       recordedDate: resource.recordedDate,
+      encounter: encounterLabel(resource.encounter, ctx),
     },
   }
 }
@@ -241,10 +253,13 @@ function normalizeReferenceRange(resource) {
   })
 }
 
-function normalizeLabResult(resource) {
+function normalizeLabResult(resource, ctx) {
+  const performer = joinNames(resource.performer, ctx)
   return {
     domain: 'labResults',
     data: {
+      performingSite: ccFromText(performer),
+      bodySite: conceptText(resource.bodySite),
       order: ccFromConcept(resource.basedOn?.[0]?.display ? { text: resource.basedOn[0].display } : undefined),
       test: ccFromConcept(resource.code),
       resultUnit: unitConcept(resource.valueQuantity),
@@ -261,10 +276,13 @@ function normalizeLabResult(resource) {
   }
 }
 
-function normalizeVitalSign(resource) {
+function normalizeVitalSign(resource, ctx) {
+  const performer = joinNames(resource.performer, ctx)
   return observationValueSources(resource).map(({ code, valueSource }) => ({
     domain: 'vitalSigns',
     data: {
+      bodySite: conceptText(resource.bodySite),
+      performer,
       vitalSign: ccFromConcept(code),
       resultValue: normalizeObservationValue(valueSource),
       resultUnit: unitConcept(valueSource.valueQuantity),
@@ -277,10 +295,12 @@ function normalizeVitalSign(resource) {
   }))
 }
 
-function normalizeHealthAssessment(resource) {
+function normalizeHealthAssessment(resource, ctx) {
+  const performer = joinNames(resource.performer, ctx)
   return observationValueSources(resource).map(({ code, valueSource }) => ({
     domain: 'healthAssessments',
     data: {
+      performer,
       assessment: ccFromConcept(code),
       assessmentStatus: ccFromText(resource.status),
       resultValue: normalizeObservationValue(valueSource),
@@ -291,13 +311,25 @@ function normalizeHealthAssessment(resource) {
   }))
 }
 
-function normalizeObservation(resource) {
-  if (isCategory(resource, 'laboratory')) return normalizeLabResult(resource)
-  if (isCategory(resource, 'vital-signs')) return normalizeVitalSign(resource)
+// A measurement with a real unit, not a score: UCUM annotations like
+// "{score}" mark questionnaire totals rather than lab measurements.
+function isMeasurement(resource) {
+  const unit = resource.valueQuantity?.code ?? resource.valueQuantity?.unit
+  return Boolean(unit) && !/^\{.*\}$/.test(unit)
+}
+
+function normalizeObservation(resource, ctx) {
+  if (isCategory(resource, 'laboratory')) return normalizeLabResult(resource, ctx)
+  if (isCategory(resource, 'vital-signs')) return normalizeVitalSign(resource, ctx)
   if (isCategory(resource, 'social-history') || isCategory(resource, 'survey')) {
-    return normalizeHealthAssessment(resource)
+    return normalizeHealthAssessment(resource, ctx)
   }
-  return null
+  // Uncategorized or other categories (exam, procedure...), common in
+  // converted C-CDA: measurements are lab results, the rest (scores, coded
+  // findings like "well nourished") are assessments, rather than dropping them.
+  // Without any value there is nothing to show.
+  if (!hasDirectValue(resource) && !resource.component?.length) return null
+  return isMeasurement(resource) ? normalizeLabResult(resource, ctx) : normalizeHealthAssessment(resource, ctx)
 }
 
 function normalizeImmunization(resource) {
@@ -315,7 +347,7 @@ function normalizeImmunization(resource) {
   }
 }
 
-function normalizeProcedure(resource) {
+function normalizeProcedure(resource, ctx) {
   const dateTime = resource.performedDateTime ?? resource.performedPeriod?.start
   return {
     domain: 'procedures',
@@ -325,11 +357,14 @@ function normalizeProcedure(resource) {
       procedureReason: ccFromConcept(resource.reasonCode?.[0]),
       procedureStatus: ccFromText(resource.status),
       procedurePerformedDate: dateTime,
+      endDateTime: resource.performedPeriod?.end,
+      bodySite: conceptText(resource.bodySite?.[0]),
+      performer: joinNames((resource.performer ?? []).map((p) => p.actor), ctx),
     },
   }
 }
 
-function normalizeDevice(resource) {
+function normalizeDevice(resource, ctx) {
   const udi = resource.udiCarrier?.[0]
   return {
     domain: 'medicalDevices',
@@ -343,6 +378,9 @@ function normalizeDevice(resource) {
       manufactureDate: resource.manufactureDate,
       carrierHRF: udi?.carrierHRF,
       distinctIdentifier: udi?.distinctIdentifier,
+      manufacturer: resource.manufacturer,
+      version: resource.version?.[0]?.value,
+      owner: referenceName(resource.owner, ctx),
     },
   }
 }
@@ -369,7 +407,8 @@ function normalizeCoverage(resource) {
 // is kept once, dated by the earliest claim it appears on.
 
 const NDC = 'http://hl7.org/fhir/sid/ndc'
-const PROCEDURE_ITEM_SYSTEMS = ['http://www.ama-assn.org/go/cpt', 'HCPCSReleaseCodeSets']
+// CPT, HCPCS and CDT (dental) service lines become procedures.
+const PROCEDURE_ITEM_SYSTEMS = ['http://www.ama-assn.org/go/cpt', 'HCPCSReleaseCodeSets', 'ada.org/cdt']
 
 function claimStart(resource) {
   return resource.billablePeriod?.start ?? resource.created?.slice(0, 10)
@@ -476,6 +515,380 @@ function normalizeExplanationOfBenefit(resource, ctx) {
   return out
 }
 
+// --- Imaging, clinical notes and referrals (display-only) -------------------
+//
+// These sit outside the PIQI clinical model, so they are mapped to plain
+// strings for display rather than PIQI attribute types, and are never scored.
+// Note text is kept small enough for localStorage: only text attachments are
+// decoded, and long text is cut off.
+
+const MAX_TEXT_CHARS = 20000
+const PERSON_TYPES = new Set(['Practitioner', 'Person', 'RelatedPerson', 'Patient'])
+
+function conceptText(concept) {
+  if (!concept) return undefined
+  return concept.text ?? concept.coding?.find((c) => c.display)?.display ?? concept.coding?.[0]?.code
+}
+
+function personName(resource) {
+  const name = resource.name?.[0]
+  if (!name) return undefined
+  if (name.text) return name.text
+  const base = [...(name.prefix ?? []), ...(name.given ?? []), name.family].filter(Boolean).join(' ')
+  return name.suffix?.length ? `${base}, ${name.suffix.join(', ')}` : base || undefined
+}
+
+function referenceName(ref, ctx) {
+  const target = resolveReference(ref, ctx)
+  if (target) {
+    if (target.resourceType === 'Organization') return target.name ?? ref.display
+    if (PERSON_TYPES.has(target.resourceType)) return personName(target) ?? ref.display
+    if (target.resourceType === 'PractitionerRole') {
+      return referenceName(target.practitioner, ctx) ?? referenceName(target.organization, ctx)
+    }
+    if (typeof target.name === 'string') return target.name // Location, CareTeam, Device...
+    if (target.code) return conceptText(target.code)
+  }
+  return ref?.display
+}
+
+function joinNames(refs, ctx) {
+  const names = [...new Set((refs ?? []).map((r) => referenceName(r, ctx)).filter(Boolean))]
+  return names.length ? names.join('; ') : undefined
+}
+
+// Markup whitespace is not meaningful, so it is collapsed first; line breaks
+// come from block tags and table cells are separated by a tab.
+function htmlToText(html) {
+  return html
+    .replace(/\s+/g, ' ')
+    .replace(/<\/(td|th)>/gi, '\t')
+    .replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d|\/paragraph|\/item)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/ *\t */g, '\t')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+// The human-readable narrative of a C-CDA document: each section's <text>
+// block under its <title>. Regex rather than an XML parser so it runs the same
+// in the browser and in tests; sections without narrative are left out.
+function cdaNarrative(xml) {
+  const blocks = []
+  const textBlock = /<text\b[^>]*>([\s\S]*?)<\/text>/gi
+  let match
+  while ((match = textBlock.exec(xml))) {
+    const body = htmlToText(match[1])
+    if (!body) continue
+    const titleStart = xml.lastIndexOf('<title>', match.index)
+    const titleEnd = titleStart >= 0 ? xml.indexOf('</title>', titleStart) : -1
+    const title = titleEnd > titleStart ? htmlToText(xml.slice(titleStart + 7, titleEnd)) : ''
+    blocks.push(title ? `${title.toUpperCase()}\n${body}` : body)
+  }
+  return blocks.join('\n\n')
+}
+
+function isGzip(bytes) {
+  return bytes[0] === 0x1f && bytes[1] === 0x8b
+}
+
+const XML_TYPES = new Set(['text/xml', 'application/xml', 'application/hl7-cda+xml'])
+
+// Returns { text, truncated, format } for text attachments (inline or via a
+// Binary in the same Bundle), { omitted } for other formats, or { url } when
+// the content lives elsewhere. Handles gzip-compressed content and C-CDA XML,
+// which some senders label as text/plain.
+function attachmentContent(attachment, ctx) {
+  if (!attachment) return {}
+  let data = attachment.data
+  let contentType = attachment.contentType
+  if (!data && attachment.url) {
+    const binary = resolveReference({ reference: attachment.url }, ctx)
+    if (binary?.resourceType === 'Binary') {
+      data = binary.data
+      contentType = contentType ?? binary.contentType
+    }
+  }
+  const mediaType = (contentType ?? '').split(';')[0].trim().toLowerCase()
+  if (!data) return attachment.url && !attachment.url.startsWith('shlink:/') ? { url: attachment.url } : {}
+  if (!mediaType.startsWith('text/') && !XML_TYPES.has(mediaType)) {
+    return { omitted: `${contentType ?? 'Unknown format'} document, not shown here` }
+  }
+  let text
+  try {
+    let bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
+    if (isGzip(bytes)) bytes = ungzip(bytes)
+    text = new TextDecoder().decode(bytes)
+  } catch {
+    return { omitted: 'Document text could not be decoded' }
+  }
+  let format
+  if (text.includes('<ClinicalDocument')) {
+    text = cdaNarrative(text)
+    if (!text) return { omitted: 'C-CDA document with no narrative text', format: 'C-CDA document' }
+    format = 'C-CDA document (narrative text shown)'
+  } else if (XML_TYPES.has(mediaType)) {
+    return { omitted: `${contentType} document, not shown here` }
+  } else if (mediaType === 'text/html') {
+    text = htmlToText(text)
+  }
+  text = text.trim()
+  if (text.length > MAX_TEXT_CHARS) return { text: text.slice(0, MAX_TEXT_CHARS), truncated: true, format }
+  return { text, format }
+}
+
+// Built once per Bundle: which imaging studies have a report, and which
+// attachments already belong to a report (so a DocumentReference copy of the
+// same report is not shown twice).
+function reportIndex(ctx) {
+  if (ctx.reportIndex) return ctx.reportIndex
+  const byStudy = new Map()
+  const attachmentUrls = new Set()
+  for (const resource of new Set(ctx.byRef.values())) {
+    if (resource.resourceType !== 'DiagnosticReport') continue
+    for (const ref of resource.imagingStudy ?? []) {
+      const study = resolveReference(ref, ctx)
+      if (study) byStudy.set(study, resource)
+    }
+    for (const form of resource.presentedForm ?? []) {
+      if (form.url) attachmentUrls.add(form.url)
+    }
+  }
+  ctx.reportIndex = { byStudy, attachmentUrls }
+  return ctx.reportIndex
+}
+
+function hasCategoryCode(resource, codes) {
+  return resource.category?.some((c) => c.coding?.some((coded) => codes.includes(coded.code)))
+}
+
+function reportFields(report, ctx) {
+  if (!report) return {}
+  const content = attachmentContent(report.presentedForm?.[0], ctx)
+  return {
+    conclusion: report.conclusion,
+    reportTitle: report.presentedForm?.[0]?.title ?? conceptText(report.code),
+    reportText: content.text,
+    reportTruncated: content.truncated,
+    reportOmitted: content.omitted,
+    reportUrl: content.url,
+    interpreter: joinNames(report.resultsInterpreter, ctx) ?? joinNames(report.performer, ctx),
+  }
+}
+
+function normalizeImagingStudy(resource, ctx) {
+  const report = reportIndex(ctx).byStudy.get(resource)
+  const fromReport = reportFields(report, ctx)
+  const bodySites = [...new Set((resource.series ?? []).map((s) => s.bodySite?.display ?? s.bodySite?.code).filter(Boolean))]
+  const modalities = [...new Set((resource.modality ?? []).map((m) => m.display ?? m.code).filter(Boolean))]
+  return {
+    domain: 'imaging',
+    data: {
+      title: resource.description ?? conceptText(resource.procedureCode?.[0]) ?? conceptText(report?.code) ?? 'Imaging study',
+      date: resource.started ?? report?.effectiveDateTime,
+      modality: modalities.join(', ') || undefined,
+      bodySite: bodySites.join(', ') || undefined,
+      procedure: conceptText(resource.procedureCode?.[0]),
+      series: String(resource.numberOfSeries ?? resource.series?.length ?? '') || undefined,
+      images: resource.numberOfInstances !== undefined ? String(resource.numberOfInstances) : undefined,
+      status: resource.status,
+      ...fromReport,
+      interpreter: joinNames(resource.interpreter, ctx) ?? fromReport.interpreter,
+    },
+  }
+}
+
+function normalizeDiagnosticReport(resource, ctx) {
+  // Lab panels, and any results-only report with no narrative: the results are
+  // already imported as Lab Results, so the report would just be an empty header.
+  if (resource.result?.length) {
+    const hasNarrative = resource.presentedForm?.length || resource.conclusion
+    if (hasCategoryCode(resource, ['LAB', 'laboratory']) || !hasNarrative) return null
+  }
+  // A report on an imaging study in this Bundle is shown on that study.
+  if ((resource.imagingStudy ?? []).some((ref) => resolveReference(ref, ctx))) return null
+
+  const fields = reportFields(resource, ctx)
+  if (hasCategoryCode(resource, ['LP29684-5', 'RAD'])) {
+    return {
+      domain: 'imaging',
+      data: {
+        title: conceptText(resource.code) ?? 'Imaging report',
+        date: resource.effectiveDateTime ?? resource.effectivePeriod?.start ?? resource.issued,
+        status: resource.status,
+        ...fields,
+      },
+    }
+  }
+  return {
+    domain: 'clinicalNotes',
+    data: {
+      title: fields.reportTitle ?? 'Report',
+      noteType: conceptText(resource.category?.[0]) ?? 'Report',
+      date: resource.effectiveDateTime ?? resource.effectivePeriod?.start ?? resource.issued,
+      author: fields.interpreter,
+      status: resource.status,
+      summary: resource.conclusion,
+      text: fields.reportText,
+      truncated: fields.reportTruncated,
+      omitted: fields.reportOmitted,
+      url: fields.reportUrl,
+    },
+  }
+}
+
+function normalizeDocumentReference(resource, ctx) {
+  if (resource.status === 'entered-in-error') return null
+  const attachment = resource.content?.[0]?.attachment
+  // A pointer to a SMART Health Link, not a note.
+  if (resource.content?.some((c) => c.attachment?.url?.startsWith('shlink:/'))) return null
+  // A copy of a report that is already shown from its DiagnosticReport.
+  const related = (resource.context?.related ?? []).map((ref) => resolveReference(ref, ctx))
+  if (related.some((r) => r?.resourceType === 'DiagnosticReport')) return null
+  if (attachment?.url && reportIndex(ctx).attachmentUrls.has(attachment.url)) return null
+
+  const content = attachmentContent(attachment, ctx)
+  return {
+    domain: 'clinicalNotes',
+    data: {
+      title: attachment?.title ?? resource.description ?? conceptText(resource.type) ?? 'Clinical note',
+      noteType: conceptText(resource.type),
+      date: resource.date ?? resource.context?.period?.start ?? attachment?.creation,
+      author: joinNames(resource.author, ctx),
+      organization: referenceName(resource.custodian, ctx),
+      status: resource.docStatus ?? resource.status,
+      format: content.format,
+      text: content.text,
+      truncated: content.truncated,
+      omitted: content.omitted,
+      url: content.url,
+    },
+  }
+}
+
+function normalizeServiceRequest(resource, ctx) {
+  const reasons = [
+    ...(resource.reasonCode ?? []).map(conceptText),
+    ...(resource.reasonReference ?? []).map((ref) => referenceName(ref, ctx)),
+  ].filter(Boolean)
+  return {
+    domain: 'referrals',
+    data: {
+      title: conceptText(resource.code) ?? 'Order',
+      date: resource.authoredOn,
+      category: conceptText(resource.category?.[0]),
+      status: resource.status,
+      priority: resource.priority,
+      requester: referenceName(resource.requester, ctx),
+      performer: joinNames(resource.performer, ctx),
+      reason: [...new Set(reasons)].join('; ') || undefined,
+      summary: (resource.note ?? []).map((n) => n.text).filter(Boolean).join(' ') || undefined,
+    },
+  }
+}
+
+function addressText(address) {
+  if (!address) return undefined
+  if (address.text) return address.text
+  return [address.line?.join(' '), address.city, address.state, address.postalCode].filter(Boolean).join(', ') || undefined
+}
+
+function normalizeEncounter(resource, ctx) {
+  const reasons = [
+    ...(resource.reasonCode ?? []).map(conceptText),
+    ...(resource.reasonReference ?? []).map((ref) => referenceName(ref, ctx)),
+  ].filter(Boolean)
+  return {
+    domain: 'encounters',
+    data: {
+      title: conceptText(resource.type?.[0]) ?? resource.class?.display ?? resource.class?.code ?? 'Encounter',
+      date: resource.period?.start,
+      endDate: resource.period?.end,
+      encounterClass: resource.class?.display ?? resource.class?.code,
+      status: resource.status,
+      provider: joinNames((resource.participant ?? []).map((p) => p.individual), ctx),
+      location: joinNames((resource.location ?? []).map((l) => l.location), ctx),
+      facility: referenceName(resource.serviceProvider, ctx),
+      reason: [...new Set(reasons)].join('; ') || undefined,
+      diagnosis: joinNames((resource.diagnosis ?? []).map((d) => d.condition), ctx),
+    },
+  }
+}
+
+function normalizeCareTeam(resource, ctx) {
+  const members = (resource.participant ?? [])
+    .map((p) => {
+      const name = referenceName(p.member, ctx)
+      const role = conceptText(p.role?.[0])
+      return name && role ? `${name} (${role})` : name ?? role
+    })
+    .filter(Boolean)
+  return {
+    domain: 'careTeam',
+    data: {
+      title: resource.name ?? 'Care team',
+      date: resource.period?.start,
+      status: resource.status,
+      organization: joinNames(resource.managingOrganization, ctx),
+      members: members.join('; ') || undefined,
+    },
+  }
+}
+
+function normalizeRelatedPerson(resource) {
+  const contact = (system) => resource.telecom?.find((t) => t.system === system)?.value
+  return {
+    domain: 'contacts',
+    data: {
+      title: personName(resource) ?? 'Related person',
+      relationship: conceptText(resource.relationship?.[0]),
+      phone: contact('phone'),
+      email: contact('email'),
+      address: addressText(resource.address?.[0]),
+      date: resource.period?.start,
+    },
+  }
+}
+
+function compositionSections(sections) {
+  return (sections ?? []).flatMap((section) => {
+    const body = section.text?.div ? htmlToText(section.text.div) : ''
+    const own = body ? [[section.title?.toUpperCase(), body].filter(Boolean).join('\n')] : []
+    return [...own, ...compositionSections(section.section)]
+  })
+}
+
+// A clinical document (e.g. a C-CDA converted to FHIR): shown as a note with
+// each section's narrative.
+function normalizeComposition(resource, ctx) {
+  let text = compositionSections(resource.section).join('\n\n')
+  const truncated = text.length > MAX_TEXT_CHARS
+  if (truncated) text = text.slice(0, MAX_TEXT_CHARS)
+  return {
+    domain: 'clinicalNotes',
+    data: {
+      title: resource.title ?? conceptText(resource.type) ?? 'Clinical document',
+      noteType: conceptText(resource.type),
+      date: resource.date ?? resource.event?.[0]?.period?.start,
+      author: joinNames(resource.author, ctx),
+      organization: referenceName(resource.custodian, ctx),
+      status: resource.status,
+      encounter: encounterLabel(resource.encounter, ctx),
+      text: text || undefined,
+      truncated: truncated || undefined,
+    },
+  }
+}
+
 const NORMALIZERS = {
   Patient: normalizePatient,
   MedicationRequest: normalizeMedication,
@@ -488,6 +901,14 @@ const NORMALIZERS = {
   Device: normalizeDevice,
   Coverage: normalizeCoverage,
   ExplanationOfBenefit: normalizeExplanationOfBenefit,
+  ImagingStudy: normalizeImagingStudy,
+  DiagnosticReport: normalizeDiagnosticReport,
+  DocumentReference: normalizeDocumentReference,
+  ServiceRequest: normalizeServiceRequest,
+  Encounter: normalizeEncounter,
+  CareTeam: normalizeCareTeam,
+  RelatedPerson: normalizeRelatedPerson,
+  Composition: normalizeComposition,
 }
 
 export function normalizeFhirBundle(bundle) {

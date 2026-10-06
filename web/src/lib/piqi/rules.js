@@ -1,4 +1,5 @@
 import { displayText } from './attributeTypes'
+import { isDisplayOnly } from '../domains'
 
 // Field attribute types per the PIQI Clinical Data Model, needed so patient
 // assertions and manual entry wrap values in the right shape (Simple string
@@ -251,6 +252,54 @@ export const DATE_FIELDS = {
   healthAssessments: 'effectiveDate',
 }
 
+// Details some sources carry that the PIQI model has no attribute for. They are
+// stored and shown, but never checked or sent in a PIQI message (wireRecord
+// only sends ATTRIBUTE_TYPES fields).
+export const EXTRA_FIELDS = {
+  allergies: ['reactionOnset'],
+  conditions: ['encounter'],
+  labResults: ['bodySite'],
+  vitalSigns: ['bodySite', 'performer'],
+  healthAssessments: ['performer'],
+  procedures: ['endDateTime', 'bodySite', 'performer'],
+  medicalDevices: ['manufacturer', 'version', 'owner'],
+}
+
+const EXTRA_FIELD_LABELS = {
+  reactionOnset: 'reaction onset',
+  encounter: 'encounter',
+  bodySite: 'body site',
+  performer: 'performed by',
+  endDateTime: 'end date',
+  manufacturer: 'manufacturer',
+  version: 'version',
+  owner: 'owner',
+  issueDateTime: 'issued date',
+}
+
+export function fieldLabel(field) {
+  return FIELD_LABELS[field] ?? EXTRA_FIELD_LABELS[field] ?? field
+}
+
+// The fields a record card shows: every required field (flagged when
+// missing), then any other populated PIQI or extra field. A value already
+// shown under another field (clinical status vs. condition status, procedure
+// date vs. performed date) is not repeated.
+export function displayFields(domain, data) {
+  const skip = domain === 'demographics' ? ['firstName', 'lastName'] : [IDENTITY_FIELDS[domain]]
+  const required = (REQUIRED_FIELDS[domain] ?? []).filter((f) => !skip.includes(f))
+  const shown = required.map((field) => ({ field, required: true }))
+  const seen = new Set(required.map((f) => displayText(data[f])).filter(Boolean))
+  for (const field of [...Object.keys(ATTRIBUTE_TYPES[domain] ?? {}), ...(EXTRA_FIELDS[domain] ?? [])]) {
+    if (skip.includes(field) || required.includes(field)) continue
+    const text = displayText(data[field])
+    if (text === undefined || seen.has(text)) continue
+    seen.add(text)
+    shown.push({ field, required: false })
+  }
+  return shown
+}
+
 export function recordLabel(domain, data) {
   if (domain === 'demographics') {
     const name = [displayText(data.firstName), displayText(data.lastName)].filter(Boolean).join(' ')
@@ -258,6 +307,9 @@ export function recordLabel(domain, data) {
   }
   if (domain === 'coverage') {
     return data.plan_name || 'Untitled record'
+  }
+  if (isDisplayOnly(domain)) {
+    return data.title || 'Untitled record'
   }
   const field = IDENTITY_FIELDS[domain]
   return (field && displayText(data[field])) || 'Untitled record'

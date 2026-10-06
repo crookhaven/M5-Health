@@ -18,23 +18,33 @@ describe('App', () => {
   it('switches tabs on click', async () => {
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getByRole('tab', { name: 'My data' }))
-    expect(screen.getByRole('tab', { name: 'My data' })).toHaveAttribute(
+    await user.click(screen.getByRole('tab', { name: 'My health' }))
+    expect(screen.getByRole('tab', { name: 'My health' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
     expect(screen.getByText(/no health information imported yet/i)).toBeInTheDocument()
   })
 
-  it('loads the sample health record and shows it in My data', async () => {
+  it('loads the sample health record and shows it in My health', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Load sample health record' }))
 
-    await user.click(screen.getByRole('tab', { name: 'My data' }))
+    await user.click(screen.getByRole('tab', { name: 'My health' }))
     expect(screen.getByText('Atorvastatin')).toBeInTheDocument()
     expect(screen.getByText('Insulin pump')).toBeInTheDocument()
+  })
+
+  it('shows the same record in the provider-facing Clinical view, with codes', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Load sample health record' }))
+    await user.click(screen.getByRole('tab', { name: 'Clinical view' }))
+    expect(screen.getByRole('tab', { name: 'Clinical view' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getAllByRole('table').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Atorvastatin').length).toBeGreaterThan(0)
   })
 
   it('has no Findings tab, and What to do waits for a PIQI result', async () => {
@@ -42,7 +52,7 @@ describe('App', () => {
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Load sample health record' }))
     expect(screen.queryByRole('tab', { name: /findings/i })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: 'My data' }))
+    await user.click(screen.getByRole('tab', { name: 'My health' }))
     await user.click(screen.getByRole('tab', { name: 'What to do' }))
     expect(screen.getByText(/run your piqi score first/i)).toBeInTheDocument()
   })
@@ -54,7 +64,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add patient' }))
     await user.type(screen.getByLabelText(/new patient name/i), 'Sam')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    await user.click(screen.getByRole('tab', { name: 'My data' }))
+    await user.click(screen.getByRole('tab', { name: 'My health' }))
     expect(screen.getByText(/no health information imported yet/i)).toBeInTheDocument()
     expect(screen.queryByText('Atorvastatin')).not.toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Family' }))

@@ -3,6 +3,7 @@ import logo from './assets/logo.svg'
 import { WorkspaceProvider, useWorkspace } from './state/WorkspaceContext'
 import ImportPanel from './components/ImportPanel'
 import Dashboard from './components/Dashboard'
+import ClinicalView from './components/ClinicalView'
 import ClaimsPanel from './components/ClaimsPanel'
 import IpsView from './components/IpsView'
 import PiqiResults from './components/PiqiResults'
@@ -17,7 +18,8 @@ import './App.css'
 const TABS = [
   { key: 'import', label: 'Import' },
   { key: 'family', label: 'Family' },
-  { key: 'data', label: 'My data' },
+  { key: 'data', label: 'My health' },
+  { key: 'clinical', label: 'Clinical view' },
   { key: 'compare', label: 'Compare plans' },
   { key: 'share', label: 'Share & Export' },
 ]
@@ -119,6 +121,15 @@ function AppContent() {
           <>
             <h2 className="patient-heading">{activePatient?.name}</h2>
             <DataArea key={activePatient?.id} sourceRecords={sourceRecords} assertions={assertions} />
+          </>
+        )}
+        {tab === 'clinical' && (
+          <>
+            <h2 className="patient-heading">{activePatient?.name}</h2>
+            <p className="section-help">
+              Provider view: every section as a table with codes, dates, all recorded details and sources.
+            </p>
+            <ClinicalView key={activePatient?.id} sourceRecords={sourceRecords} assertions={assertions} />
           </>
         )}
         {tab === 'compare' && <ComparePlans />}

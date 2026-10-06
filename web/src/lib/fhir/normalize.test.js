@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { gzipSync } from 'node:zlib'
 import { normalizeFhirBundle } from './normalize'
 import { displayText } from '../piqi/attributeTypes'
 import sampleBundle from '../../data/sample_fhir_bundle.json'
@@ -149,7 +150,7 @@ describe('normalizeFhirBundle', () => {
     expect(social[0].domain).toBe('healthAssessments')
   })
 
-  it('skips Observations with no recognized category', () => {
+  it('skips Observations outside the known categories that carry no value', () => {
     const bundle = {
       resourceType: 'Bundle',
       entry: [
@@ -168,7 +169,7 @@ describe('normalizeFhirBundle', () => {
   it('ignores resource types it does not know how to normalize', () => {
     const bundle = {
       resourceType: 'Bundle',
-      entry: [{ resource: { resourceType: 'Encounter', status: 'finished' } }],
+      entry: [{ resource: { resourceType: 'Location', name: 'Clinic' } }],
     }
     expect(normalizeFhirBundle(bundle)).toEqual([])
   })
@@ -395,5 +396,283 @@ describe('normalizeFhirBundle', () => {
       expect(systems(med.data.doseAmountUnit)).toEqual(['http://unitsofmeasure.org'])
       expect(displayText(med.data.doseAmountUnit)).toBe('mg')
     })
+  })
+})
+
+describe('normalizeFhirBundle - imaging, clinical notes and referrals', () => {
+  const b64 = (text) => Buffer.from(text).toString('base64')
+  const base = 'https://example.org/fhir'
+  const entry = (resource) => ({ fullUrl: `${base}/${resource.resourceType}/${resource.id}`, resource })
+  const bundle = {
+    resourceType: 'Bundle',
+    entry: [
+      entry({ resourceType: 'Practitioner', id: 'rad', name: [{ given: ['Thomas'], family: 'Nguyen', suffix: ['MD'] }] }),
+      entry({ resourceType: 'Condition', id: 'ckd', code: { text: 'Diabetic CKD' } }),
+      entry({
+        resourceType: 'ImagingStudy',
+        id: 'us',
+        status: 'available',
+        started: '2018-08-28T10:15:00-05:00',
+        description: 'US KIDNEYS BILATERAL',
+        modality: [{ code: 'US', display: 'Ultrasound' }],
+        numberOfSeries: 2,
+        numberOfInstances: 7,
+        series: [{ bodySite: { display: 'Right kidney structure' } }, { bodySite: { display: 'Left kidney structure' } }],
+      }),
+      entry({ resourceType: 'Binary', id: 'b1', contentType: 'text/plain', data: b64('FINDINGS: normal.') }),
+      entry({
+        resourceType: 'DiagnosticReport',
+        id: 'r1',
+        status: 'final',
+        category: [{ coding: [{ system: 'http://loinc.org', code: 'LP29684-5' }] }],
+        code: { text: 'US Kidneys' },
+        imagingStudy: [{ reference: 'ImagingStudy/us' }],
+        resultsInterpreter: [{ reference: 'Practitioner/rad' }],
+        conclusion: 'No hydronephrosis.',
+        presentedForm: [{ contentType: 'text/plain', url: `${base}/Binary/b1`, title: 'US report' }],
+      }),
+      // A DocumentReference copy of the same report.
+      entry({
+        resourceType: 'DocumentReference',
+        id: 'twin',
+        status: 'current',
+        content: [{ attachment: { contentType: 'text/plain', url: `${base}/Binary/b1` } }],
+        context: { related: [{ reference: 'DiagnosticReport/r1' }] },
+      }),
+      entry({
+        resourceType: 'DocumentReference',
+        id: 'n1',
+        status: 'current',
+        docStatus: 'final',
+        type: { text: 'Consult note' },
+        date: '2018-08-20T16:12:00-05:00',
+        author: [{ reference: 'Practitioner/rad' }],
+        content: [{ attachment: { contentType: 'text/html', data: b64('<p>Plan:&nbsp;renal US</p><p>Follow up</p>'), title: 'Nephrology Consultation' } }],
+      }),
+      entry({
+        resourceType: 'DocumentReference',
+        id: 'pdf',
+        status: 'current',
+        type: { text: 'Summary of episode note' },
+        content: [{ attachment: { contentType: 'application/pdf', data: b64('%PDF-1.4') } }],
+      }),
+      entry({
+        resourceType: 'DiagnosticReport',
+        id: 'lab',
+        category: [{ coding: [{ code: 'LAB' }] }],
+        code: { text: 'Comprehensive metabolic panel' },
+        result: [{ reference: 'Observation/x' }],
+      }),
+      // A results-only panel with no category or narrative, as converted C-CDA often has.
+      entry({ resourceType: 'DiagnosticReport', id: 'panel', code: { text: 'CBC panel' }, result: [{ reference: 'Observation/y' }] }),
+      entry({
+        resourceType: 'ServiceRequest',
+        id: 's1',
+        status: 'completed',
+        intent: 'order',
+        category: [{ text: 'Patient referral' }],
+        code: { text: 'Referral to nephrology' },
+        authoredOn: '2018-07-14',
+        requester: { display: 'Angela Morris, MD' },
+        performer: [{ reference: 'Practitioner/rad' }],
+        reasonReference: [{ reference: 'Condition/ckd' }],
+        note: [{ text: 'Please co-manage.' }],
+      }),
+    ],
+  }
+  const results = normalizeFhirBundle(bundle)
+  const dataFor = (domain) => results.filter((r) => r.domain === domain).map((r) => r.data)
+
+  it('shows an imaging study with its report attached', () => {
+    const imaging = dataFor('imaging')
+    expect(imaging).toHaveLength(1)
+    expect(imaging[0]).toMatchObject({
+      title: 'US KIDNEYS BILATERAL',
+      modality: 'Ultrasound',
+      bodySite: 'Right kidney structure, Left kidney structure',
+      series: '2',
+      images: '7',
+      interpreter: 'Thomas Nguyen, MD',
+      conclusion: 'No hydronephrosis.',
+      reportText: 'FINDINGS: normal.',
+    })
+  })
+
+  it('turns DocumentReferences into notes, decoding text and skipping report copies', () => {
+    const notes = dataFor('clinicalNotes')
+    expect(notes.map((n) => n.title)).toEqual(['Nephrology Consultation', 'Summary of episode note'])
+    expect(notes[0]).toMatchObject({ noteType: 'Consult note', author: 'Thomas Nguyen, MD', text: 'Plan: renal US\nFollow up' })
+  })
+
+  it('lists non-text documents without storing their content', () => {
+    const pdf = dataFor('clinicalNotes')[1]
+    expect(pdf.text).toBeUndefined()
+    expect(pdf.omitted).toMatch(/application\/pdf/)
+  })
+
+  it('skips lab panels and results-only reports, whose results are already lab results', () => {
+    const titles = results.map((r) => r.data.title)
+    expect(titles).not.toContain('Comprehensive metabolic panel')
+    expect(titles).not.toContain('CBC panel')
+  })
+
+  it('decompresses a gzipped C-CDA labeled text/plain and shows its narrative', () => {
+    const cda =
+      '<?xml version="1.0"?><ClinicalDocument><component><structuredBody><component><section>' +
+      '<title>Allergies</title><text><table><tr><td>Penicillin</td> <td>Nausea</td></tr></table></text>' +
+      '</section></component><component><section><title>Assessment</title>' +
+      '<text>\n    <paragraph>Uncontrolled\n     diabetes.</paragraph>\n  </text></section></component>' +
+      '</structuredBody></component></ClinicalDocument>'
+    const [note] = normalizeFhirBundle({
+      resourceType: 'Bundle',
+      entry: [
+        entry({
+          resourceType: 'DocumentReference',
+          id: 'gz',
+          status: 'current',
+          type: { text: 'Consultation Note' },
+          content: [{ attachment: { contentType: 'text/plain', data: gzipSync(Buffer.from(cda)).toString('base64') } }],
+        }),
+      ],
+    })
+    expect(note.data.format).toMatch(/C-CDA/)
+    expect(note.data.text).toBe('ALLERGIES\nPenicillin\tNausea\n\nASSESSMENT\nUncontrolled diabetes.')
+  })
+
+  it('keeps uncategorized Observations: measurements as labs, scores and findings as assessments', () => {
+    const obs = (id, extra) => entry({ resourceType: 'Observation', id, status: 'final', code: { text: id }, ...extra })
+    const mapped = normalizeFhirBundle({
+      resourceType: 'Bundle',
+      entry: [
+        obs('eGFR', { valueQuantity: { value: 72, unit: 'mL/min', code: 'mL/min' } }),
+        obs('GAD-7 total', { valueQuantity: { value: 3, unit: '{score}', code: '{score}' } }),
+        obs('Nutrition status', { valueCodeableConcept: { text: 'well nourished' } }),
+        obs('Exam finding', { category: [{ coding: [{ code: 'exam' }] }], valueString: 'normal gait' }),
+      ],
+    })
+    expect(mapped.map((r) => [displayText(r.data.test ?? r.data.assessment), r.domain])).toEqual([
+      ['eGFR', 'labResults'],
+      ['GAD-7 total', 'healthAssessments'],
+      ['Nutrition status', 'healthAssessments'],
+      ['Exam finding', 'healthAssessments'],
+    ])
+  })
+
+  it('captures details outside the PIQI model on devices, procedures and observations', () => {
+    const mapped = normalizeFhirBundle({
+      resourceType: 'Bundle',
+      entry: [
+        entry({ resourceType: 'Organization', id: 'org', name: 'Atlas Clinic' }),
+        entry({ resourceType: 'Device', id: 'd1', type: { text: 'Insulin pump' }, manufacturer: 'Acme', version: [{ value: '2.1' }], owner: { reference: 'Organization/org' } }),
+        entry({
+          resourceType: 'Procedure',
+          id: 'p1',
+          status: 'completed',
+          code: { text: 'Knee arthroscopy' },
+          performedPeriod: { start: '2020-01-02T08:00:00Z', end: '2020-01-02T10:00:00Z' },
+          bodySite: [{ text: 'Left knee' }],
+          performer: [{ actor: { reference: 'Practitioner/rad' } }],
+        }),
+        entry({ resourceType: 'Practitioner', id: 'rad', name: [{ given: ['Thomas'], family: 'Nguyen' }] }),
+        entry({
+          resourceType: 'Observation',
+          id: 'bp',
+          status: 'final',
+          category: [{ coding: [{ code: 'vital-signs' }] }],
+          code: { text: 'Heart rate' },
+          valueQuantity: { value: 70, unit: '/min' },
+          bodySite: { text: 'Left arm' },
+          performer: [{ reference: 'Organization/org' }],
+        }),
+      ],
+    })
+    const byDomain = (d) => mapped.find((r) => r.domain === d).data
+    expect(byDomain('medicalDevices')).toMatchObject({ manufacturer: 'Acme', version: '2.1', owner: 'Atlas Clinic' })
+    expect(byDomain('procedures')).toMatchObject({ endDateTime: '2020-01-02T10:00:00Z', bodySite: 'Left knee', performer: 'Thomas Nguyen' })
+    expect(byDomain('vitalSigns')).toMatchObject({ bodySite: 'Left arm', performer: 'Atlas Clinic' })
+  })
+
+  it('maps encounters, care teams, related people and compositions', () => {
+    const mapped = normalizeFhirBundle({
+      resourceType: 'Bundle',
+      entry: [
+        entry({ resourceType: 'Location', id: 'loc', name: 'Atlas Main Campus' }),
+        entry({ resourceType: 'Condition', id: 'dm', code: { text: 'Type 2 diabetes' } }),
+        entry({
+          resourceType: 'Encounter',
+          id: 'e1',
+          status: 'finished',
+          class: { code: 'AMB', display: 'ambulatory' },
+          type: [{ text: 'Office visit' }],
+          period: { start: '2026-07-12T09:00:00Z', end: '2026-07-12T09:30:00Z' },
+          participant: [{ individual: { reference: 'Practitioner/rad' } }],
+          location: [{ location: { reference: 'Location/loc' } }],
+          diagnosis: [{ condition: { reference: 'Condition/dm' } }],
+        }),
+        entry({
+          resourceType: 'CareTeam',
+          id: 'ct',
+          status: 'active',
+          name: 'Diabetes care team',
+          managingOrganization: [{ display: 'Atlas Clinic' }],
+          participant: [{ member: { reference: 'Practitioner/rad' }, role: [{ text: 'Primary care' }] }],
+        }),
+        entry({
+          resourceType: 'RelatedPerson',
+          id: 'rp',
+          name: [{ given: ['Maria'], family: 'Gonzalez' }],
+          relationship: [{ text: 'Daughter' }],
+          telecom: [{ system: 'phone', value: '555-0100' }],
+          address: [{ line: ['1 Main St'], city: 'Springfield', state: 'IL' }],
+        }),
+        entry({
+          resourceType: 'Composition',
+          id: 'c1',
+          status: 'final',
+          title: 'Continuity of Care Document',
+          type: { text: 'Summary of episode note' },
+          date: '2026-09-29',
+          section: [
+            { title: 'Problems', text: { div: '<div xmlns="http://www.w3.org/1999/xhtml"><ul><li>Type 2 diabetes</li></ul></div>' } },
+            { title: 'Empty section' },
+          ],
+        }),
+        entry({ resourceType: 'Practitioner', id: 'rad', name: [{ given: ['Thomas'], family: 'Nguyen' }] }),
+      ],
+    })
+    const one = (d) => mapped.filter((r) => r.domain === d).map((r) => r.data)
+    expect(one('encounters')).toEqual([
+      expect.objectContaining({
+        title: 'Office visit',
+        date: '2026-07-12T09:00:00Z',
+        endDate: '2026-07-12T09:30:00Z',
+        encounterClass: 'ambulatory',
+        provider: 'Thomas Nguyen',
+        location: 'Atlas Main Campus',
+        diagnosis: 'Type 2 diabetes',
+      }),
+    ])
+    expect(one('careTeam')).toEqual([
+      expect.objectContaining({ title: 'Diabetes care team', organization: 'Atlas Clinic', members: 'Thomas Nguyen (Primary care)' }),
+    ])
+    expect(one('contacts')).toEqual([
+      expect.objectContaining({ title: 'Maria Gonzalez', relationship: 'Daughter', phone: '555-0100', address: '1 Main St, Springfield, IL' }),
+    ])
+    expect(one('clinicalNotes')).toEqual([
+      expect.objectContaining({ title: 'Continuity of Care Document', noteType: 'Summary of episode note', text: 'PROBLEMS\nType 2 diabetes' }),
+    ])
+  })
+
+  it('maps a ServiceRequest to a referral with resolved names', () => {
+    expect(dataFor('referrals')).toEqual([
+      expect.objectContaining({
+        title: 'Referral to nephrology',
+        status: 'completed',
+        requester: 'Angela Morris, MD',
+        performer: 'Thomas Nguyen, MD',
+        reason: 'Diabetic CKD',
+        summary: 'Please co-manage.',
+      }),
+    ])
   })
 })
