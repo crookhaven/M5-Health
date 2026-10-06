@@ -8,6 +8,7 @@ import {
   normalizeText,
 } from './rules'
 import { isPopulated, codeableConcept, observationValue, rangeValue } from './attributeTypes'
+import { isDisplayOnly } from '../domains'
 
 export function wrapAssertionValue(domain, field, rawText) {
   const type = ATTRIBUTE_TYPES[domain]?.[field] ?? 'simple'
@@ -248,13 +249,14 @@ export function runPiqiAnalysis(sourceRecords, assertions, findingDecisions) {
 
   let findings = []
   for (const [domain, records] of byDomain) {
+    if (isDisplayOnly(domain)) continue
     findings = findings.concat(
       completenessFindings(domain, records, assertions),
       duplicationAndConsistencyFindings(domain, records, assertions),
       timelinessFindings(domain, records, assertions),
     )
   }
-  findings = findings.concat(provenanceFindings(sourceRecords))
+  findings = findings.concat(provenanceFindings(sourceRecords.filter((r) => !isDisplayOnly(r.domain))))
 
   return findings.map((f) => ({
     ...f,

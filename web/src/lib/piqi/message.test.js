@@ -13,6 +13,16 @@ function record(id, domain, data) {
 }
 
 describe('buildPiqiMessage', () => {
+  it('leaves display-only domains out even when they are requested', () => {
+    const records = [
+      record('i1', 'imaging', { title: 'US Kidneys' }),
+      record('n1', 'clinicalNotes', { title: 'Consult note' }),
+      record('r1', 'referrals', { title: 'Referral to nephrology' }),
+    ]
+    const message = buildPiqiMessage(records, [], { domains: ['imaging', 'clinicalNotes', 'referrals'] })
+    expect(message.patient).toEqual({})
+  })
+
   it('nests records under patient, keyed by PIQI data class field name', () => {
     const records = [
       record('m1', 'medications', {

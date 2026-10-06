@@ -1,6 +1,7 @@
 import { effectiveData } from './engine'
 import { ATTRIBUTE_TYPES } from './rules'
 import { codeableConcept, observationValue, rangeValue, toWireValue } from './attributeTypes'
+import { isDisplayOnly } from '../domains'
 
 // The 10 PIQI Clinical Data Model classes and their message field names --
 // Coverage is an M5 Health addition outside the model and is never included.
@@ -42,7 +43,7 @@ function wireRecord(domain, data) {
 export function buildPiqiMessage(sourceRecords, assertions, { domains = PIQI_MESSAGE_DOMAINS } = {}) {
   const patient = {}
   for (const domain of domains) {
-    if (domain === 'coverage') continue
+    if (domain === 'coverage' || isDisplayOnly(domain)) continue
     const records = sourceRecords.filter((r) => r.domain === domain)
     if (records.length === 0) continue
     const wired = records.map((record) => wireRecord(domain, effectiveData(record, assertions).merged))

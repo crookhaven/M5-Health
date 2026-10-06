@@ -4,6 +4,7 @@ export function buildPdfSummary({ sections }) {
   const doc = new jsPDF({ unit: 'pt' })
   const margin = 40
   const pageHeight = doc.internal.pageSize.getHeight()
+  const textWidth = doc.internal.pageSize.getWidth() - margin * 2
   const lineHeight = 16
   let y = margin
 
@@ -34,7 +35,11 @@ export function buildPdfSummary({ sections }) {
     for (const record of section.records) {
       writeLine(`  ${record.title}`, { size: 11, bold: true, gap: 15 })
       for (const line of record.lines) {
-        writeLine(`    ${line}`, { size: 10, gap: 13 })
+        // Wrap long lines and multi-line text (e.g. a clinical note) to the page.
+        doc.setFontSize(10)
+        for (const part of doc.splitTextToSize(`    ${line}`, textWidth)) {
+          writeLine(part, { size: 10, gap: 13 })
+        }
       }
       writeLine(`    Source: ${record.source}`, { size: 9, gap: 13 })
     }

@@ -151,7 +151,7 @@ function FhirBundleImport() {
         if (claimsData) addClaims(claimsData)
         setStatus(
           `Imported ${records.length} records from ${file.name}.` +
-            (claimsData ? ` Also kept ${claimsData.claims.length} insurance claims (see My data, then Claims).` : ''),
+            (claimsData ? ` Also kept ${claimsData.claims.length} insurance claims (see My health, then Claims).` : ''),
         )
         setError(null)
       } catch (err) {

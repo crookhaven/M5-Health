@@ -1,5 +1,15 @@
-import { DOMAIN_ORDER, DOMAINS } from '../lib/domains'
-import { REQUIRED_FIELDS, FIELD_LABELS, IDENTITY_FIELDS, recordLabel } from '../lib/piqi/rules'
+import { useState } from 'react'
+import { DOMAIN_HELP, DOMAIN_ORDER, DOMAINS, isDisplayOnly } from '../lib/domains'
+import { filterBySpecialty } from '../lib/specialty'
+import SpecialtyFilter from './SpecialtyFilter'
+import {
+  DOCUMENT_FIELDS,
+  SUMMARY_FIELD,
+  displayDate,
+  displayOnlyFields,
+  sortByDateDesc,
+} from '../lib/displayOnly'
+import { displayFields, fieldLabel, recordLabel } from '../lib/piqi/rules'
 import { effectiveData, timelinessBucketFor } from '../lib/piqi/engine'
 import { displayText } from '../lib/piqi/attributeTypes'
 import { sourceLabel } from '../lib/sourceLabels'
@@ -12,15 +22,9 @@ const TIMELINESS_LABELS = {
   unknown: null,
 }
 
-function fieldsToDisplay(domain) {
-  const fields = REQUIRED_FIELDS[domain] ?? []
-  const skip = domain === 'demographics' ? ['firstName', 'lastName'] : [IDENTITY_FIELDS[domain]]
-  return fields.filter((f) => !skip.includes(f))
-}
-
 function RecordCard({ domain, record, assertions }) {
   const { merged, assertedFields, confirmed } = effectiveData(record, assertions)
-  const fields = fieldsToDisplay(domain)
+  const fields = displayFields(domain, merged)
   const bucketLabel = TIMELINESS_LABELS[timelinessBucketFor(domain, record, assertions)]
 
   return (
@@ -30,11 +34,11 @@ function RecordCard({ domain, record, assertions }) {
         {bucketLabel && <span className="badge">{bucketLabel}</span>}
       </div>
       <dl className="record-fields">
-        {fields.map((field) => {
+        {fields.map(({ field }) => {
           const text = displayText(merged[field])
           return (
             <div key={field}>
-              <dt>{FIELD_LABELS[field] ?? field}</dt>
+              <dt>{fieldLabel(field)}</dt>
               <dd>
                 {text !== undefined ? (
                   <>
@@ -60,9 +64,64 @@ function RecordCard({ domain, record, assertions }) {
   )
 }
 
+function DisplayOnlyCard({ domain, record }) {
+  const data = record.data
+  const summary = data[SUMMARY_FIELD[domain]]
+  const doc = DOCUMENT_FIELDS[domain]
+  const text = doc && data[doc.text]
+
+  return (
+    <div className="record-card">
+      <div className="record-card-header">
+        <h3>{recordLabel(domain, data)}</h3>
+        {data.date && <span className="badge">{displayDate(data.date)}</span>}
+      </div>
+      <dl className="record-fields">
+        {displayOnlyFields(domain, data).map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {summary && <p className="record-summary">{summary}</p>}
+      {text && (
+        <details className="document-text">
+          <summary>Show full {doc.label}</summary>
+          <pre>{text}</pre>
+          {data[doc.truncated] && <p className="record-source">Shortened for display.</p>}
+        </details>
+      )}
+      {!text && doc && data[doc.omitted] && <p className="record-source">{data[doc.omitted]}</p>}
+      {!text && doc && data[doc.url] && (
+        <p className="record-source">
+          Full {doc.label}:{' '}
+          <a href={data[doc.url]} target="_blank" rel="noopener noreferrer">
+            open at source
+          </a>
+        </p>
+      )}
+      <div className="record-source">Source: {sourceLabel(record.source)}</div>
+    </div>
+  )
+}
+
+function SectionHeading({ domain }) {
+  return (
+    <>
+      <h2>{DOMAINS[domain].label}</h2>
+      {DOMAIN_HELP[domain] && <p className="section-help">{DOMAIN_HELP[domain]}</p>}
+    </>
+  )
+}
+
+// The patient-facing view: plain-language cards. The provider-facing
+// equivalent is ClinicalView.
 export default function Dashboard({ sourceRecords, assertions }) {
+  const [specialty, setSpecialty] = useState('all')
+  const visible = filterBySpecialty(sourceRecords, specialty)
   const byDomain = {}
-  for (const record of sourceRecords) {
+  for (const record of visible) {
     if (!byDomain[record.domain]) byDomain[record.domain] = []
     byDomain[record.domain].push(record)
   }
@@ -78,6 +137,7 @@ export default function Dashboard({ sourceRecords, assertions }) {
 
   return (
     <div className="dashboard">
+      <SpecialtyFilter records={sourceRecords} value={specialty} onChange={setSpecialty} />
       {DOMAIN_ORDER.map((domain) => {
         const records = byDomain[domain] ?? []
         if (records.length === 0) return null
@@ -85,7 +145,7 @@ export default function Dashboard({ sourceRecords, assertions }) {
         if (domain === 'coverage') {
           return (
             <section key={domain}>
-              <h2>{DOMAINS[domain].label}</h2>
+              <SectionHeading domain={domain} />
               <div className="coverage-list">
                 {records.map((record) => (
                   <CoverageScreen key={record.id} record={record} />
@@ -95,9 +155,22 @@ export default function Dashboard({ sourceRecords, assertions }) {
           )
         }
 
+        if (isDisplayOnly(domain)) {
+          return (
+            <section key={domain}>
+              <SectionHeading domain={domain} />
+              <div className="record-grid record-grid-wide">
+                {sortByDateDesc(records).map((record) => (
+                  <DisplayOnlyCard key={record.id} domain={domain} record={record} />
+                ))}
+              </div>
+            </section>
+          )
+        }
+
         return (
           <section key={domain}>
-            <h2>{DOMAINS[domain].label}</h2>
+            <SectionHeading domain={domain} />
             <div className="record-grid">
               {records.map((record) => (
                 <RecordCard

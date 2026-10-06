@@ -48,7 +48,8 @@ $put = Invoke-WebRequest -Method Put -Uri "$Base/DocumentReference/$DocId" -UseB
 "PUT DocumentReference/$DocId -> $($put.StatusCode)"
 
 # discover it the way the EHR would: search by patient, find the shlink
-$found = Invoke-RestMethod "$Base/DocumentReference?patient=$PatientId&_count=100" -Headers @{ Accept = 'application/fhir+json' }
+# no-cache: HAPI otherwise serves a cached result of an identical recent search
+$found = Invoke-RestMethod "$Base/DocumentReference?patient=$PatientId&_count=100" -Headers @{ Accept = 'application/fhir+json'; 'Cache-Control' = 'no-cache' }
 $hit = @($found.entry | Where-Object { $_.resource.content.attachment.url -like 'shlink:/*' })
 "Search DocumentReference?patient=$PatientId -> $(@($found.entry).Count) results, $($hit.Count) with a SMART Health Link"
 if ($hit.Count -ne 1 -or ($hit[0].resource.content.attachment.url | Where-Object { $_ -like 'shlink:/*' }) -ne $secret.shlink) { throw 'SHL not discoverable as expected' }

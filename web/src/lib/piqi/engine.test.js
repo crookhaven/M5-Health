@@ -223,3 +223,15 @@ describe('runPiqiAnalysis - decisions', () => {
     expect(finding.decision).toEqual(decisions[finding.id])
   })
 })
+
+describe('runPiqiAnalysis - display-only domains', () => {
+  it('never produces findings for imaging, clinical notes or referrals', () => {
+    const old = { source: { type: 'unknown', importedAt: '2015-01-01T00:00:00.000Z' } }
+    const records = [
+      record('i1', 'imaging', { title: 'US Kidneys', date: '2015-01-01' }, old),
+      record('n1', 'clinicalNotes', { title: 'Consult note', date: '2015-01-01' }, old),
+      record('r1', 'referrals', { title: 'Referral to nephrology', date: '2015-01-01' }, old),
+    ]
+    expect(runPiqiAnalysis(records, [], {})).toEqual([])
+  })
+})

@@ -1,5 +1,6 @@
-import { DOMAIN_ORDER, DOMAINS } from './domains'
-import { REQUIRED_FIELDS, FIELD_LABELS, IDENTITY_FIELDS, recordLabel } from './piqi/rules'
+import { DOMAIN_ORDER, DOMAINS, isDisplayOnly } from './domains'
+import { displayOnlyLines, sortByDateDesc } from './displayOnly'
+import { displayFields, fieldLabel, recordLabel } from './piqi/rules'
 import { effectiveData } from './piqi/engine'
 import { displayText } from './piqi/attributeTypes'
 import { sourceLabel } from './sourceLabels'
@@ -26,18 +27,22 @@ export function selectedDomains(sourceRecords, sharingSelection) {
 
 export function buildPdfSections(domains, sourceRecords, assertions) {
   return domains.map((domain) => {
-    const records = sourceRecords.filter((r) => r.domain === domain)
-    const skip = domain === 'demographics' ? ['firstName', 'lastName'] : [IDENTITY_FIELDS[domain]]
+    const domainRecords = sourceRecords.filter((r) => r.domain === domain)
+    const records = isDisplayOnly(domain) ? sortByDateDesc(domainRecords) : domainRecords
     return {
       label: DOMAINS[domain].label,
       records: records.map((record) => {
         const { merged, confirmed } = effectiveData(record, assertions)
-        const lines =
-          domain === 'coverage'
-            ? coverageLines(merged)
-            : (REQUIRED_FIELDS[domain] ?? [])
-                .filter((f) => !skip.includes(f))
-                .map((f) => `${FIELD_LABELS[f] ?? f}: ${displayText(merged[f]) ?? 'not recorded'}`)
+        let lines
+        if (domain === 'coverage') {
+          lines = coverageLines(merged)
+        } else if (isDisplayOnly(domain)) {
+          lines = displayOnlyLines(domain, merged)
+        } else {
+          lines = displayFields(domain, merged).map(
+            ({ field }) => `${fieldLabel(field)}: ${displayText(merged[field]) ?? 'not recorded'}`,
+          )
+        }
         return {
           title: recordLabel(domain, merged),
           lines,

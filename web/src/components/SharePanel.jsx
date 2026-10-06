@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DOMAIN_ORDER, DOMAINS } from '../lib/domains'
+import { DOMAIN_ORDER, DOMAINS, isDisplayOnly } from '../lib/domains'
 import { useWorkspace } from '../state/WorkspaceContext'
 import {
   selectedDomains,
@@ -19,7 +19,7 @@ export default function SharePanel({ sourceRecords }) {
     sourceRecords.some((r) => r.domain === d),
   )
   const domains = selectedDomains(sourceRecords, sharingSelection)
-  const piqiDomains = domains.filter((d) => d !== 'coverage')
+  const piqiDomains = domains.filter((d) => d !== 'coverage' && !isDisplayOnly(d))
 
   function handleExportPiqiMessage() {
     const message = buildPiqiMessage(sourceRecords, assertions, { domains: piqiDomains })

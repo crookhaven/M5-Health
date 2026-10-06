@@ -326,6 +326,117 @@ body {
   color: var(--text);
 }
 
+/* Clinical view (provider-facing) */
+.clinical-view {
+  text-align: left;
+}
+
+.clinical-view section {
+  margin-bottom: 28px;
+}
+
+.clinical-view h2 .count {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.clinical-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.clinical-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.clinical-table th,
+.clinical-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.clinical-table thead th {
+  font-weight: 600;
+  color: var(--text-h);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.clinical-table tbody th {
+  font-weight: 600;
+  color: var(--text-h);
+  min-width: 160px;
+}
+
+.clinical-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.code-line {
+  white-space: nowrap;
+}
+
+.code-system,
+.detail-label,
+.specialty-tag {
+  color: var(--text);
+}
+
+.specialty-tag {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.section-help {
+  margin: -4px 0 12px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.specialty-filter {
+  margin-bottom: 18px;
+}
+
+/* Imaging, clinical notes and referrals: wider cards with long text */
+.record-grid-wide {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.record-summary {
+  font-size: 14px;
+  margin: 0 0 10px;
+  color: var(--text-h);
+}
+
+.document-text {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.document-text summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.document-text pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 12px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 8px 0 0;
+}
+
 /* Findings */
 .findings-panel section {
   margin-bottom: 28px;
