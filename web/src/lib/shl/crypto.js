@@ -1,3 +1,4 @@
+import { inflateRaw } from 'pako'
 import { base64UrlToBytes, bytesToBase64Url, base64UrlDecodeToString, stringToBase64Url } from '../base64url'
 
 export function generateKey() {
@@ -13,6 +14,10 @@ export async function decryptJwe(compactJwe, keyB64url) {
   const header = JSON.parse(base64UrlDecodeToString(protectedB64))
   if (header.alg !== 'dir' || header.enc !== 'A256GCM') {
     throw new Error(`Unsupported encryption (alg=${header.alg}, enc=${header.enc}); expected dir/A256GCM.`)
+  }
+  // The SHL spec allows senders to DEFLATE the payload before encrypting it.
+  if (header.zip !== undefined && header.zip !== 'DEF') {
+    throw new Error(`Unsupported compression (zip=${header.zip}); expected DEF or none.`)
   }
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
@@ -39,7 +44,8 @@ export async function decryptJwe(compactJwe, keyB64url) {
   } catch {
     throw new Error('Decryption failed. The key may be wrong or the file corrupted.')
   }
-  return new TextDecoder().decode(plainBuf)
+  const plainBytes = new Uint8Array(plainBuf)
+  return new TextDecoder().decode(header.zip === 'DEF' ? inflateRaw(plainBytes) : plainBytes)
 }
 
 export async function encryptJwe(plaintext, keyB64url) {

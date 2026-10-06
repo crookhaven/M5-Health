@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { deflateRawSync } from 'node:zlib'
 import { generateKey, encryptJwe, decryptJwe } from './crypto'
+import { encryptJweWithHeader } from '../../test/jwe'
 import { base64UrlToBytes, base64UrlDecodeToString } from '../base64url'
 
 describe('generateKey', () => {
@@ -54,6 +56,27 @@ describe('encryptJwe / decryptJwe', () => {
       .toString('base64url')
     const tampered = [badHeader, parts[1], parts[2], parts[3], parts[4]].join('.')
     await expect(decryptJwe(tampered, key)).rejects.toThrow(/unsupported encryption/i)
+  })
+
+  it('inflates a zip DEF payload after decrypting', async () => {
+    const key = generateKey()
+    const plaintext = JSON.stringify({ resourceType: 'Bundle', entry: [] })
+    const jwe = await encryptJweWithHeader(deflateRawSync(Buffer.from(plaintext)), key, {
+      alg: 'dir',
+      enc: 'A256GCM',
+      zip: 'DEF',
+    })
+    expect(await decryptJwe(jwe, key)).toBe(plaintext)
+  })
+
+  it('rejects an unsupported zip value', async () => {
+    const key = generateKey()
+    const jwe = await encryptJweWithHeader(new TextEncoder().encode('x'), key, {
+      alg: 'dir',
+      enc: 'A256GCM',
+      zip: 'GZIP',
+    })
+    await expect(decryptJwe(jwe, key)).rejects.toThrow(/unsupported compression/i)
   })
 
   it('rejects a malformed JWE that is missing parts', async () => {
