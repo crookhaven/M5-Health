@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useWorkspace } from '../state/WorkspaceContext'
 
-// Chooses which patient every other screen is showing, and adds, renames or
-// removes patients. Forms are inline (no browser pop-ups).
+// Chooses which patient every other screen is showing, and adds, renames,
+// reorders or removes patients. Forms are inline (no browser pop-ups).
 export default function PatientBar() {
-  const { patients, activeId, activePatient, selectPatient, addPatient, renamePatient, removePatient } =
+  const { patients, activeId, activePatient, selectPatient, addPatient, renamePatient, movePatient, removePatient } =
     useWorkspace()
+  const position = patients.findIndex((p) => p.id === activeId)
   const [mode, setMode] = useState(null) // 'add' | 'rename' | 'remove' | null
   const [name, setName] = useState('')
 
@@ -36,6 +37,24 @@ export default function PatientBar() {
         </select>
       </label>
       <div className="button-row">
+        <button
+          type="button"
+          onClick={() => movePatient(activeId, -1)}
+          disabled={position <= 0}
+          aria-label={`Move ${activePatient?.name} up`}
+          title="Move up in the list"
+        >
+          ↑ Move up
+        </button>
+        <button
+          type="button"
+          onClick={() => movePatient(activeId, 1)}
+          disabled={position === -1 || position >= patients.length - 1}
+          aria-label={`Move ${activePatient?.name} down`}
+          title="Move down in the list"
+        >
+          ↓ Move down
+        </button>
         <button type="button" onClick={() => open('add')}>Add patient</button>
         <button type="button" onClick={() => open('rename')}>Rename</button>
         <button type="button" onClick={() => open('remove')}>

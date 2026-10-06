@@ -129,6 +129,17 @@ export function reducer(state, action) {
     }
     case 'SELECT_PATIENT':
       return state.data[action.id] ? { ...state, activeId: action.id } : state
+    case 'MOVE_PATIENT': {
+      // Moves a patient up (offset -1) or down (+1) in the list; the order is
+      // the patient dropdown's and the Family tab's.
+      const from = state.patients.findIndex((p) => p.id === action.id)
+      const to = from + action.offset
+      if (from === -1 || to < 0 || to >= state.patients.length) return state
+      const patients = [...state.patients]
+      const [moved] = patients.splice(from, 1)
+      patients.splice(to, 0, moved)
+      return { ...state, patients }
+    }
     case 'RENAME_PATIENT': {
       const name = action.name?.trim()
       if (!name) return state
