@@ -8,6 +8,7 @@ import {
 } from '../lib/exportData'
 import { buildPiqiMessage } from '../lib/piqi/message'
 import { downloadBlob, downloadText } from '../lib/download'
+import { packageFileContent } from '../lib/shl/packageFile'
 
 export default function SharePanel({ sourceRecords }) {
   const { assertions, sharingSelection, setSharing } = useWorkspace()
@@ -53,10 +54,7 @@ export default function SharePanel({ sourceRecords }) {
 
   function handleDownloadPackage() {
     if (!shlResult) return
-    downloadText(
-      JSON.stringify({ payload: shlResult.payload, manifest: shlResult.manifest }, null, 2),
-      'm5-health-shl-package.json',
-    )
+    downloadText(JSON.stringify(packageFileContent(shlResult), null, 2), 'm5-health-shl-package.json')
   }
 
   if (domainsWithData.length === 0) {
@@ -118,10 +116,12 @@ export default function SharePanel({ sourceRecords }) {
         {shlResult && (
           <div className="shl-result">
             <p>
-              This prototype has no server to host the encrypted package at a
-              retrievable URL, so this SHL cannot be scanned by another app yet.
-              Download the package below to inspect the real encrypted content,
-              or re-import it back into M5 Health to verify it round-trips.
+              M5 Health has no server to host the encrypted record, so share two
+              things together: this link (or its QR code) and the package file
+              below. The package holds the encrypted record and the link holds
+              the key; neither can be read alone. The recipient opens them in M5
+              Health under Import, SMART Health Link: paste the link, then upload
+              the package file. Other SMART Health Link apps can't open it.
             </p>
             <img src={shlResult.qr} alt="QR code for the generated SMART Health Link" />
             <code className="shl-uri">{shlResult.shlUri}</code>
