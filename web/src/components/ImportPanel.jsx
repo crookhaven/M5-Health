@@ -4,6 +4,7 @@ import { createSourceRecord, validateCoveragePlan } from '../lib/sourceRecord'
 import { normalizeFhirBundle } from '../lib/fhir/normalize'
 import { extractClaims } from '../lib/claims/extract'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
+import { isPackageOnlyLink } from '../lib/shl/packageFile'
 import { REQUIRED_FIELDS, FIELD_LABELS } from '../lib/piqi/rules'
 import { wrapAssertionValue } from '../lib/piqi/engine'
 import { DOMAINS } from '../lib/domains'
@@ -325,6 +326,11 @@ function ShlImport() {
     try {
       const { retrieveShl, extractFhirBundles } = await import('../lib/shl/retrieve')
       const payload = parseShlUri(url)
+      if (isPackageOnlyLink(payload)) {
+        throw new Error(
+          'This link was made by M5 Health and has no online copy. Upload the package file that came with it (m5-health-shl-package.json) below.',
+        )
+      }
       if (requiresPasscode(payload)) setNeedsPasscode(true)
       const { manifest, files } = await retrieveShl(payload, {
         passcode: passcode || undefined,
@@ -342,6 +348,37 @@ function ShlImport() {
       )
       addRecords(records)
       setStatus(`Retrieved and imported ${records.length} records.`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // A package file from M5's "Create SMART Health Link package": decrypted with
+  // the key in the pasted link (older packages carry their own key).
+  async function handlePackageFile(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setBusy(true)
+    setError(null)
+    setStatus(null)
+    try {
+      const { openPackageFile, recordsFromShareContent } = await import('../lib/shl/packageFile')
+      const { label, contents } = await openPackageFile(await file.text(), url)
+      const found = []
+      for (const content of contents) {
+        if (content?.records) found.push(...recordsFromShareContent(content))
+        else found.push(...normalizeFhirBundle(content))
+      }
+      if (found.length === 0) throw new Error('The package opened, but it has no records in it.')
+      addRecords(
+        found.map(({ domain, data }) =>
+          createSourceRecord({ sourceType: 'smart-health-link', documentName: label || file.name, domain, data, raw: { packageFile: file.name } }),
+        ),
+      )
+      setStatus(`Opened the package and imported ${found.length} records.`)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -394,6 +431,14 @@ function ShlImport() {
       <button type="button" onClick={handleRetrieve} disabled={!url || busy}>
         {busy ? 'Retrieving...' : 'Retrieve'}
       </button>
+      <p>
+        Got a link from M5 Health together with a package file? Paste the link above, then upload
+        the package file here.
+      </p>
+      <label className="file-label">
+        Upload SHL package file
+        <input type="file" accept="application/json,.json" onChange={handlePackageFile} disabled={busy} />
+      </label>
       {status && <p className="import-message">{status}</p>}
       {error && <p className="import-error">{error}</p>}
     </section>

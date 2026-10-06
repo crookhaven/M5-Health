@@ -1,14 +1,17 @@
 import { generateKey, encryptJwe } from './crypto'
 import { stringToBase64Url } from '../base64url'
+import { PACKAGE_URL, SHARE_CONTENT_TYPE } from './packageFile'
 
-export async function buildShlPackage(fhirBundle, { label } = {}) {
+// shareBundle is M5's own share format (see buildSharePackageBundle), so it is
+// labeled as such rather than as FHIR.
+export async function buildShlPackage(shareBundle, { label } = {}) {
   const key = generateKey()
-  const jwe = await encryptJwe(JSON.stringify(fhirBundle), key)
+  const jwe = await encryptJwe(JSON.stringify(shareBundle), key)
   const manifest = {
-    files: [{ contentType: 'application/fhir+json', embedded: jwe }],
+    files: [{ contentType: SHARE_CONTENT_TYPE, embedded: jwe }],
   }
   const payload = {
-    url: 'local://m5-health/no-hosting-available',
+    url: PACKAGE_URL,
     key,
     flag: 'L',
     label: label ?? 'M5 Health export',
