@@ -149,6 +149,9 @@ function normalizeMedication(resource, ctx) {
       requestStatus: ccFromText(resource.status),
       medicationCategory: ccFromConcept(resource.category?.[0]),
       medicationIntent: ccFromText(resource.intent),
+      // Outside the PIQI model (EXTRA_FIELDS): shown, and used by Compare plans
+      // to estimate fills, never sent to PIQI.
+      asNeeded: dosage?.asNeededBoolean || dosage?.asNeededCodeableConcept ? 'Yes' : undefined,
     },
   }
 }

@@ -20,6 +20,14 @@ export const DEFAULT_USAGE = {
   genericDrugs: 0,
 }
 
+// Starting estimate for drug fills in a year: a monthly fill for each regular
+// medicine, two for one taken only as needed. The patient can change it.
+export const FILLS_PER_YEAR = { regular: 12, asNeeded: 2 }
+
+export function estimatedFills(medications) {
+  return medications.reduce((n, m) => n + (m.asNeeded ? FILLS_PER_YEAR.asNeeded : FILLS_PER_YEAR.regular), 0)
+}
+
 // The most a person could pay in a year, medical and drugs together. Plans that keep
 // drugs apart have two out-of-pocket maximums, so the two add up.
 export function totalMoop(plan) {

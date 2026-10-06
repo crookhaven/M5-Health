@@ -65,8 +65,15 @@ $n = 0
 foreach ($batch in $batches) {
   $n++
   $body = [Text.Encoding]::UTF8.GetBytes((BundleJson $batch))
-  $resp = Invoke-RestMethod -Method Post -Uri $Base -ContentType 'application/fhir+json; charset=utf-8' `
-    -Headers @{ Accept = 'application/fhir+json' } -Body $body -TimeoutSec 300
+  try {
+    $resp = Invoke-RestMethod -Method Post -Uri $Base -ContentType 'application/fhir+json; charset=utf-8' `
+      -Headers @{ Accept = 'application/fhir+json' } -Body $body -TimeoutSec 300
+  } catch [Net.WebException] {
+    # Show the server's OperationOutcome instead of just the status code.
+    $detail = (New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd()
+    $issues = try { (($detail | ConvertFrom-Json).issue | ForEach-Object { $_.diagnostics }) -join ' | ' } catch { $detail }
+    throw "Batch $n rejected ($([int]$_.Exception.Response.StatusCode)): $issues"
+  }
   foreach ($e in $resp.entry) { $statuses[$e.response.status] = 1 + [int]$statuses[$e.response.status] }
   '  batch {0}: {1} resources, {2} KB' -f $n, $batch.Count, [math]::Round($body.Length / 1KB)
 }
