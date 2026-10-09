@@ -284,27 +284,33 @@ function normalizeReferenceRange(resource) {
   })
 }
 
+// Panel-style lab Observations (a CBC or metabolic panel, a Gram stain with
+// several reported organisms) carry their real per-analyte results in
+// `component`, not on the resource itself -- the same pattern already
+// handled for vitalSigns/healthAssessments below. Without this, a panel
+// collapses into one record under its own panel-level code with no result
+// value, and every analyte it actually reported is silently dropped.
 function normalizeLabResult(resource, ctx) {
   const performer = joinNames(resource.performer, ctx)
-  return {
+  return observationValueSources(resource).map(({ code, valueSource }) => ({
     domain: 'labResults',
     data: {
       performingSite: ccFromText(performer),
       bodySite: conceptText(resource.bodySite),
       order: ccFromConcept(resource.basedOn?.[0]?.display ? { text: resource.basedOn[0].display } : undefined),
-      test: ccFromConcept(resource.code),
-      resultUnit: unitConcept(resource.valueQuantity),
-      resultValue: normalizeObservationValue(resource),
+      test: ccFromConcept(code),
+      resultUnit: unitConcept(valueSource.valueQuantity),
+      resultValue: normalizeObservationValue(valueSource),
       interpretation: ccFromConcept(resource.interpretation?.[0]),
       specimenType: ccFromConcept(resource.specimen?.display ? { text: resource.specimen.display } : undefined),
       resultStatus: ccFromText(resource.status),
       performedDateTime: resource.effectiveDateTime,
       issuedDateTime: resource.issued,
-      referenceRange: normalizeReferenceRange(resource),
+      referenceRange: normalizeReferenceRange(valueSource),
       orderDate: resource.issued,
       labCategory: ccFromConcept(resource.category?.[0]),
     },
-  }
+  }))
 }
 
 function normalizeVitalSign(resource, ctx) {
@@ -385,7 +391,10 @@ function normalizeProcedure(resource, ctx) {
     data: {
       procedureDateTime: dateTime,
       procedure: ccFromConcept(resource.code),
-      procedureReason: ccFromConcept(resource.reasonCode?.[0]),
+      // The reason is just as often a reference to a Condition as an inline
+      // code (seen in real IPS samples) -- Encounter and ServiceRequest
+      // already fall back to reasonReference, Procedure did not.
+      procedureReason: ccFromConcept(resource.reasonCode?.[0]) ?? ccFromText(referenceName(resource.reasonReference?.[0], ctx)),
       procedureStatus: ccFromText(resource.status),
       procedurePerformedDate: dateTime,
       endDateTime: resource.performedPeriod?.end,

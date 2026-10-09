@@ -163,6 +163,31 @@ describe('normalizeFhirBundle', () => {
     expect(social[0].domain).toBe('healthAssessments')
   })
 
+  it('expands a lab panel Observation into one labResult per component', () => {
+    // A CBC-style panel: no value of its own, each analyte in `component`.
+    // Dropping this expansion collapses the whole panel into one record
+    // under the panel's own code with no result value -- confirmed missing
+    // against a real-world panel Observation (a Gram stain report) that
+    // otherwise silently lost every one of its reported organisms.
+    const bundle = {
+      resourceType: 'Observation',
+      category: [{ coding: [{ code: 'laboratory' }] }],
+      code: { text: 'CBC panel' },
+      effectiveDateTime: '2026-01-10',
+      component: [
+        { code: { text: 'Leukocytes' }, valueQuantity: { value: 6.5, unit: '10*3/uL' } },
+        { code: { text: 'Hemoglobin' }, valueQuantity: { value: 14.2, unit: 'g/dL' } },
+      ],
+    }
+    const results = normalizeFhirBundle(bundle)
+    expect(results).toHaveLength(2)
+    expect(results.every((r) => r.domain === 'labResults')).toBe(true)
+    expect(displayText(results[0].data.test)).toBe('Leukocytes')
+    expect(displayText(results[0].data.resultValue)).toBe('6.5')
+    expect(displayText(results[1].data.test)).toBe('Hemoglobin')
+    expect(displayText(results[1].data.resultValue)).toBe('14.2')
+  })
+
   it('skips Observations outside the known categories that carry no value', () => {
     const bundle = {
       resourceType: 'Bundle',
@@ -223,6 +248,29 @@ describe('normalizeFhirBundle', () => {
     expect(result.domain).toBe('procedures')
     expect(displayText(result.data.procedure)).toBe('Appendectomy')
     expect(result.data.procedureDateTime).toBe('2019-03-02')
+  })
+
+  it('falls back to reasonReference for a Procedure reason with no inline code', () => {
+    const bundle = {
+      resourceType: 'Bundle',
+      entry: [
+        {
+          fullUrl: 'urn:uuid:cond-1',
+          resource: { resourceType: 'Condition', id: 'cond-1', code: { text: 'Acute viral pharyngitis' } },
+        },
+        {
+          resource: {
+            resourceType: 'Procedure',
+            status: 'completed',
+            code: { text: 'Throat culture' },
+            performedDateTime: '2019-03-02',
+            reasonReference: [{ reference: 'urn:uuid:cond-1', display: 'Acute viral pharyngitis (disorder)' }],
+          },
+        },
+      ],
+    }
+    const result = normalizeFhirBundle(bundle).find((r) => r.domain === 'procedures')
+    expect(displayText(result.data.procedureReason)).toBe('Acute viral pharyngitis')
   })
 
   it('normalizes the full sample bundle into the expected domain counts', () => {
