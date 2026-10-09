@@ -54,15 +54,43 @@ function usCoreCategoryConcept(resource, extensionName) {
   })
 }
 
-// US Core birth sex is a fixed-code extension (M/F/UNK), distinct from the
-// base FHIR `gender` administrative field -- prefer it when present.
+// US Core birth sex is a fixed-code extension (M/F/UNK) from its own code
+// system -- not the base FHIR `gender` administrative-gender system, whose
+// codes are the lowercase words male/female/other/unknown. Tagging M/F/UNK
+// as administrative-gender (as this used to do) produces a coding that is
+// invalid under either system. A USCDI-aligned PIQI Gateway audit also wants
+// a SNOMED CT code specifically ("Patient Birth Sex code is not in SNOMED
+// CT" for a US Core M/F value with no SNOMED alongside it), so add the
+// standard crosswalk (M -> 248153007, F -> 248152002) as a second coding on
+// the same concept, the same way a multi-system concept like an allergy's
+// substance already carries several parallel codings.
+const US_CORE_BIRTHSEX_SYSTEM = 'http://hl7.org/fhir/us/core/CodeSystem/birthsex'
+const BIRTHSEX_SNOMED = { M: { code: '248153007', display: 'Male' }, F: { code: '248152002', display: 'Female' } }
+
 function usCoreBirthSex(resource) {
   const code = resource.extension?.find((e) => e.url === `${US_CORE_EXTENSION_BASE}birthsex`)?.valueCode
   if (!code) return undefined
   const display = { M: 'Male', F: 'Female', UNK: 'Unknown' }[code] ?? code
+  const snomed = BIRTHSEX_SNOMED[code]
   return codeableConcept({
     text: display,
-    codings: [coding({ code, display, system: 'http://hl7.org/fhir/administrative-gender' })],
+    codings: [
+      coding({ code, display, system: US_CORE_BIRTHSEX_SYSTEM }),
+      ...(snomed ? [coding({ code: snomed.code, display: snomed.display, system: 'http://snomed.info/sct' })] : []),
+    ],
+  })
+}
+
+// Base FHIR `gender` is itself a coded field (AdministrativeGender:
+// male | female | other | unknown), so it should carry a coding, not just
+// text -- dropping the code is what makes a Gateway audit call it an invalid
+// concept when there is no US Core birthsex extension to prefer instead
+// (seen auditing an IPS bundle, which has no US Core extensions).
+function administrativeGenderConcept(genderCode) {
+  if (!genderCode) return undefined
+  return codeableConcept({
+    text: genderCode,
+    codings: [coding({ code: genderCode, system: 'http://hl7.org/fhir/administrative-gender' })],
   })
 }
 
@@ -79,7 +107,7 @@ function normalizePatient(resource) {
       middleName: name.middleName,
       lastName: name.lastName,
       birthDate: resource.birthDate,
-      birthSex: usCoreBirthSex(resource) ?? ccFromText(resource.gender),
+      birthSex: usCoreBirthSex(resource) ?? administrativeGenderConcept(resource.gender),
       race: usCoreCategoryConcept(resource, 'race'),
       ethnicity: usCoreCategoryConcept(resource, 'ethnicity'),
       deceased:

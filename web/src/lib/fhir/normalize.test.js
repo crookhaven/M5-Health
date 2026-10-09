@@ -25,6 +25,12 @@ describe('normalizeFhirBundle', () => {
     expect(result.data.lastName).toBe('Rivera')
     expect(result.data.birthDate).toBe('1985-04-12')
     expect(displayText(result.data.birthSex)).toBe('female')
+    // Base FHIR `gender` is a coded field; keep the code even without a US
+    // Core birthsex extension, so a Gateway audit sees a valid concept
+    // instead of bare text (seen auditing an IPS bundle, which has none).
+    expect(result.data.birthSex.codings).toEqual([
+      { code: 'female', display: undefined, system: 'http://hl7.org/fhir/administrative-gender' },
+    ])
   })
 
   it('parses US Core race, ethnicity, and birth sex extensions', () => {
@@ -74,6 +80,13 @@ describe('normalizeFhirBundle', () => {
     expect(displayText(result.data.race)).toBe('White')
     expect(displayText(result.data.ethnicity)).toBe('Not Hispanic or Latino')
     expect(displayText(result.data.birthSex)).toBe('Female')
+    // US Core's own code system (not administrative-gender, whose codes are
+    // the words male/female), plus the SNOMED CT crosswalk a USCDI-aligned
+    // Gateway audit checks for.
+    expect(result.data.birthSex.codings).toEqual([
+      { code: 'F', display: 'Female', system: 'http://hl7.org/fhir/us/core/CodeSystem/birthsex' },
+      { code: '248152002', display: 'Female', system: 'http://snomed.info/sct' },
+    ])
   })
 
   it('maps a MedicationRequest to medications with typed attributes', () => {
