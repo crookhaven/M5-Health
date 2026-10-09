@@ -131,6 +131,11 @@
   .status-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.9rem; }
   .copy-row { display: flex; gap: 8px; align-items: center; }
   .copy-row input { font-family: var(--mono); font-size: 0.82rem; flex: 1; min-width: 0; }
+  .tabs { display: flex; gap: 8px; }
+  .tab-btn { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font: inherit; font-weight: 600; cursor: pointer; color: var(--text-dim); }
+  .tab-btn.active { background: var(--accent); color: var(--accent-contrast); border-color: transparent; }
+  details > summary { cursor: pointer; font-size: 0.85rem; color: var(--text-dim); }
+  smart-checkin-picker { display: block; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -142,11 +147,18 @@
 <script type="module">
 // M5 Health Test Wallet
 //
-// A web wallet for the "Kill the Clipboard" SMART Health Check-in connectathon
-// (https://smart-health-checkin.org/connectathon/). It implements the WALLET
-// role of the postMessage-based web-wallet protocol described in that spec's
-// client docs, using the official, unmodified client library -- this page
-// does none of the mdoc/CBOR/COSE/HPKE work itself.
+// A test tool for the "Kill the Clipboard" SMART Health Check-in connectathon
+// (https://smart-health-checkin.org/connectathon/), covering BOTH roles of
+// the postMessage-based web-wallet protocol, as two tabs on the home screen:
+//   - Wallet tab (default): this page as the WALLET, answering a request --
+//     serveWebWallet() below, driven by a real incoming request or the
+//     "Preview" button.
+//   - Verifier tab: this page as the VERIFIER/clinic/EHR side, building a
+//     request and sending it to a wallet (this page's own URL included --
+//     a quick way to run the full round trip in two tabs with nothing else
+//     involved) via the official <smart-checkin-picker> element.
+// Both sides use the official, unmodified client library -- this page does
+// none of the mdoc/CBOR/COSE/HPKE work itself.
 //
 // Served as a plain static file (web/public/test-wallet/), so it carries no
 // Content-Security-Policy restrictions and can load the library straight
@@ -188,9 +200,35 @@ import {
   selectEntries,
   selects,
 } from "https://smart-health-checkin.org/client/lib/0.4.4/wallet.js";
+// Verifier (clinic/EHR) side -- used only by the "Verifier" tab below, which
+// lets this same page play the other role: sending a request to a wallet
+// (this one, or another team's) instead of answering one.
+import { wallets } from "https://smart-health-checkin.org/client/lib/0.4.4/checkin.js";
+import "https://smart-health-checkin.org/client/lib/0.4.4/ui.js"; // registers <smart-checkin-picker>
 
 const FHIR_VERSION = "4.0.1";
 const FHIR_MEDIA_TYPE = "application/fhir+json";
+
+// The connectathon's real wallet registry, used by the Verifier tab so it
+// can send a request to any already-registered wallet (SMART's own
+// reference wallet, other teams' wallets) in addition to a one-off URL.
+const REGISTRY_URL = "https://smart-health-checkin.org/connectathon/wallets.json";
+const CUSTOM_WALLETS_KEY = "m5-verifier-custom-wallets";
+function loadCustomWallets() {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_WALLETS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function saveCustomWallets(list) {
+  try {
+    localStorage.setItem(CUSTOM_WALLETS_KEY, JSON.stringify(list));
+  } catch {
+    // localStorage unavailable (private window, etc.) -- custom wallets just
+    // won't persist across reloads; nothing else depends on this.
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Synthetic patient record (ground rule: synthetic data only). Jordan Rivera
@@ -1024,8 +1062,40 @@ function renderDone({ origin, response }) {
   app.appendChild(el("div", { class: "actions" }, [el("button", { onclick: () => window.close() }, "Close window")]));
 }
 
-function renderLanding({ opened }) {
+// Two tabs on the home screen: "Wallet" (this page answering a request --
+// the original, still-default behavior) and "Verifier" (this page SENDING
+// one, to itself or another team's wallet). Only shown on the home screen;
+// a real incoming protocol request still takes over the whole page via
+// renderConsentScreen/renderDone, same as before this tab system existed.
+let homeTab = "wallet";
+
+function renderHome({ opened }) {
   app.innerHTML = "";
+  app.appendChild(
+    el("div", { class: "tabs" }, [
+      el("button", {
+        class: `tab-btn${homeTab === "wallet" ? " active" : ""}`,
+        type: "button",
+        onclick: () => {
+          homeTab = "wallet";
+          renderHome({ opened });
+        },
+      }, "Wallet"),
+      el("button", {
+        class: `tab-btn${homeTab === "verifier" ? " active" : ""}`,
+        type: "button",
+        onclick: () => {
+          homeTab = "verifier";
+          renderHome({ opened });
+        },
+      }, "Verifier"),
+    ]),
+  );
+  if (homeTab === "verifier") renderVerifierTab();
+  else renderWalletTab({ opened });
+}
+
+function renderWalletTab({ opened }) {
   app.appendChild(el("h1", {}, "M5 Health Test Wallet"));
   app.appendChild(
     el("p", {}, [
@@ -1063,7 +1133,7 @@ function renderLanding({ opened }) {
   app.appendChild(previewCard);
 
   if (!opened) {
-    app.appendChild(el("p", { class: "muted" }, "Opened directly, not from a check-in page, so there's nothing to answer right now."));
+    app.appendChild(el("p", { class: "muted" }, "Opened directly, not from a check-in page, so there's nothing to answer right now. Use the Verifier tab above to send yourself a request instead."));
   }
 
   app.appendChild(
@@ -1319,6 +1389,212 @@ function showPreview() {
 }
 
 // ---------------------------------------------------------------------------
+// Verifier tab -- this page playing the CLINIC/EHR role: building a request
+// and sending it to a wallet (this same page's own URL, or another team's),
+// instead of answering one. Uses the official <smart-checkin-picker> element
+// rather than hand-rolling the window.open()/postMessage timing ourselves --
+// that timing is click-handler-sensitive (see docs/web-wallets.md) and the
+// picker already gets it right.
+// ---------------------------------------------------------------------------
+
+function renderVerifierTab() {
+  app.appendChild(el("h1", {}, "Verifier"));
+  app.appendChild(
+    el("p", {}, [
+      "Play the clinic's role: build a request and send it to a wallet, then see what comes back. Add ",
+      el("strong", {}, "this page's own URL"),
+      " below to run the full Wallet ↔ Verifier round trip in two tabs with nothing else involved, or add another team's wallet URL to test against theirs.",
+    ]),
+  );
+
+  const walletCard = el("div", { class: "card" });
+  walletCard.appendChild(el("h2", {}, "Add a wallet by URL"));
+  walletCard.appendChild(
+    el("p", { class: "muted" }, "Kept in this browser only (localStorage) -- the same way the SMART Testing EHR's own “Web wallet URL” field works, so you can test before anything is registered."),
+  );
+  const nameInput = el("input", { type: "text", placeholder: "Name (e.g. M5 Health self-test)" });
+  const urlInput = el("input", { type: "text", placeholder: "https://…/test-wallet/" });
+  walletCard.appendChild(el("div", { class: "copy-row" }, [nameInput]));
+  walletCard.appendChild(el("div", { class: "copy-row" }, [urlInput]));
+  const addActions = el("div", { class: "actions" });
+  addActions.appendChild(
+    el("button", {
+      type: "button",
+      onclick: () => {
+        urlInput.value = location.href;
+        nameInput.value = "This page (self-test)";
+      },
+    }, "Use this page's URL"),
+  );
+  const addBtn = el("button", { class: "primary", type: "button", onclick: () => addCustomWallet() }, "Add");
+  addActions.appendChild(addBtn);
+  walletCard.appendChild(addActions);
+  const customList = el("div", { class: "status-list" });
+  walletCard.appendChild(customList);
+  app.appendChild(walletCard);
+
+  const requestCard = el("div", { class: "card" });
+  requestCard.appendChild(el("h2", {}, "Build the request"));
+  requestCard.appendChild(el("p", { class: "muted" }, "Everything selected by default -- uncheck anything you don't want to ask for."));
+  const checkedIds = new Set(SAMPLE_REQUEST.items.map((i) => i.id));
+  const checklist = el("div", { class: "status-list" });
+  for (const item of SAMPLE_REQUEST.items) {
+    const row = el("div", { class: "item-row" });
+    const id = `vi-${item.id}`;
+    row.appendChild(el("label", { for: id, class: "item-meta" }, [el("div", { class: "item-title" }, item.title ?? item.id)]));
+    row.appendChild(
+      el("input", {
+        type: "checkbox",
+        id,
+        checked: "true",
+        onchange: (e) => {
+          if (e.target.checked) checkedIds.add(item.id);
+          else checkedIds.delete(item.id);
+        },
+      }),
+    );
+    checklist.appendChild(row);
+  }
+  requestCard.appendChild(checklist);
+  app.appendChild(requestCard);
+
+  function buildRequest() {
+    return {
+      purpose: "M5 Health Verifier test -- pre-visit check-in",
+      items: SAMPLE_REQUEST.items.filter((i) => checkedIds.has(i.id)),
+    };
+  }
+
+  const pickerCard = el("div", { class: "card" });
+  pickerCard.appendChild(el("h2", {}, "Send it"));
+  pickerCard.appendChild(el("p", { class: "muted" }, "Choose a wallet below to run the check-in against it. The phone's own wallet is hidden here -- this tool is for testing web wallets specifically."));
+  const picker = document.createElement("smart-checkin-picker");
+  picker.setAttribute("mode", "pick");
+  picker.setAttribute("platform", "off");
+  pickerCard.appendChild(picker);
+  app.appendChild(pickerCard);
+
+  const resultCard = el("div", { class: "card", hidden: "true" });
+  resultCard.id = "verifier-result";
+  app.appendChild(resultCard);
+
+  function renderCustomWalletList() {
+    customList.innerHTML = "";
+    const list = loadCustomWallets();
+    if (!list.length) {
+      customList.appendChild(el("p", { class: "muted" }, "No custom wallets added yet."));
+      return;
+    }
+    for (const w of list) {
+      const row = el("div", { class: "status-row" }, [
+        el("span", {}, `${w.name} — ${w.walletUrl}`),
+        el("button", {
+          type: "button",
+          class: "danger-text",
+          onclick: () => {
+            saveCustomWallets(loadCustomWallets().filter((x) => x.id !== w.id));
+            renderCustomWalletList();
+            refreshWallets();
+          },
+        }, "Remove"),
+      ]);
+      customList.appendChild(row);
+    }
+  }
+
+  function addCustomWallet() {
+    const name = nameInput.value.trim();
+    const url = urlInput.value.trim();
+    if (!name || !url) return;
+    const list = loadCustomWallets();
+    list.push({ id: `custom-${Date.now()}`, name, walletUrl: url, target: "tab" });
+    saveCustomWallets(list);
+    nameInput.value = "";
+    urlInput.value = "";
+    renderCustomWalletList();
+    refreshWallets();
+  }
+
+  async function refreshWallets() {
+    let registryWallets = [];
+    try {
+      registryWallets = await wallets({ registry: REGISTRY_URL });
+    } catch {
+      // Registry unreachable (offline, CORS, etc.) -- custom wallets still work.
+    }
+    picker.wallets = [...registryWallets, ...loadCustomWallets()];
+  }
+
+  renderCustomWalletList();
+  picker.request = buildRequest();
+  refreshWallets();
+
+  // Re-build the request right before the patient actually picks a wallet,
+  // so a checkbox ticked after the first render still takes effect.
+  picker.addEventListener("smart-checkin-choose", () => {
+    picker.request = buildRequest();
+  });
+  picker.addEventListener("smart-checkin-response", (e) => showVerifierResult({ outcome: "completed", detail: e.detail }));
+  picker.addEventListener("smart-checkin-declined", () => showVerifierResult({ outcome: "declined" }));
+  picker.addEventListener("smart-checkin-error", (e) => showVerifierResult({ outcome: "error", detail: e.detail }));
+}
+
+function showVerifierResult({ outcome, detail }) {
+  const card = document.getElementById("verifier-result");
+  if (!card) return;
+  card.hidden = false;
+  card.innerHTML = "";
+  card.appendChild(el("h2", {}, "Result"));
+
+  if (outcome === "declined") {
+    card.appendChild(statusPill("declined", "off"));
+    card.appendChild(el("p", { class: "muted" }, "The wallet declined the request."));
+    return;
+  }
+  if (outcome === "error") {
+    card.appendChild(statusPill(detail?.code ?? "error", "warn"));
+    card.appendChild(el("p", { class: "muted" }, detail?.message ?? "The wallet reported an error."));
+    return;
+  }
+
+  const response = detail?.response;
+  if (!response) {
+    card.appendChild(el("p", { class: "muted" }, "Completed, but no response object came back."));
+    return;
+  }
+
+  let items = [];
+  try {
+    items = response.items?.() ?? [];
+  } catch {
+    items = [];
+  }
+  if (items.length) {
+    const list = el("div", { class: "status-list" });
+    for (const it of items) {
+      list.appendChild(
+        el("div", { class: "status-row" }, [
+          el("span", {}, it.title ?? it.id ?? it.item ?? "(item)"),
+          statusPill(it.status ?? "unknown", it.status === "fulfilled" ? "" : it.status === "declined" || it.status === "unsupported" ? "off" : "warn"),
+        ]),
+      );
+    }
+    card.appendChild(list);
+  }
+
+  const rawDetails = el("details", {});
+  rawDetails.appendChild(el("summary", {}, "Raw response JSON"));
+  let rawText = "(unavailable)";
+  try {
+    rawText = JSON.stringify(response.json ?? response, null, 2);
+  } catch {
+    // leave the placeholder text
+  }
+  rawDetails.appendChild(el("pre", { class: "log" }, rawText));
+  card.appendChild(rawDetails);
+}
+
+// ---------------------------------------------------------------------------
 // Wire up the real protocol
 // ---------------------------------------------------------------------------
 
@@ -1372,7 +1648,7 @@ const served = serveWebWallet({
   },
 });
 
-renderLanding({ opened: served.opened });
+renderHome({ opened: served.opened });
 </script>
 </body>
 </html>
