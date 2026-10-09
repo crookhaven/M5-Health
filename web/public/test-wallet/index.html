@@ -192,8 +192,10 @@
 //   cross-device, in-person-handoff: not applicable to a web wallet (native
 //     Android wallet + phone Credential Manager only).
 //   write-back: not applicable to the wallet role (Verifier/EHR-side only).
-//   prefilled-form: ambiguous for this form -- the semaglutide questionnaire
-//     has no LOINC codes to key a prefill off of. Not implemented.
+//   prefilled-form: supported, best effort -- see applyPrefill. Matches
+//     question text / linkId / option labels against the synthetic record
+//     (the forms carry no LOINC codes), tags prefilled answers, keeps them
+//     editable, and leaves anything unrecognized blank.
 import {
   serveWebWallet,
   declineAll,
@@ -651,6 +653,138 @@ function qrItemFor(qItem, values) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Prefill (the "prefilled-form" scenario): before the patient sees a form,
+// answers are filled in from this wallet's synthetic record wherever a
+// question is recognizably about something the record holds. Nothing is
+// guessed: unrecognized questions stay blank, prefilled ones carry a visible
+// tag, and every answer stays editable. Matching is by question text, linkId
+// and option labels, because the connectathon forms carry no LOINC codes to
+// key a prefill on. The patterns below must be kept in step with RECORD_ENTRIES.
+// ---------------------------------------------------------------------------
+
+const recordNames = (type, pick) =>
+  RECORD_ENTRIES.filter((e) => e.resource.resourceType === type).map((e) => pick(e.resource));
+const capitalize = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+const PREFILL_FACTS = {
+  firstName: PATIENT_RESOURCE.name[0].given[0],
+  lastName: PATIENT_RESOURCE.name[0].family,
+  fullName: `${PATIENT_RESOURCE.name[0].given[0]} ${PATIENT_RESOURCE.name[0].family}`,
+  dob: PATIENT_RESOURCE.birthDate,
+  sex: capitalize(PATIENT_RESOURCE.gender),
+  phone: PATIENT_RESOURCE.telecom.find((t) => t.system === "phone")?.value,
+  address: [
+    PATIENT_RESOURCE.address[0].line.join(" "),
+    PATIENT_RESOURCE.address[0].city,
+    PATIENT_RESOURCE.address[0].state,
+    PATIENT_RESOURCE.address[0].postalCode,
+  ].join(", "),
+  conditions: recordNames("Condition", (r) => r.code.text),
+  allergies: recordNames("AllergyIntolerance", (r) => r.code.text),
+  medications: recordNames("MedicationRequest", (r) => r.medicationCodeableConcept.text),
+};
+
+const PREFILL_LIST_TOPICS = ["conditions", "allergies", "medications"];
+const PREFILL_PATTERNS = {
+  conditions: [/hypertension|high blood pressure/i, /diabet/i],
+  allergies: [/penicillin/i, /peanut/i],
+  medications: [/lisinopril/i, /atorvastatin|lipitor/i, /metformin/i],
+  sex: [/\bfemale\b/i, /^f$/i],
+};
+// Order matters: specific identity topics before the generic "name" one.
+const PREFILL_TOPICS = [
+  ["firstName", /first name|given name|first_name|firstname/i],
+  ["lastName", /last name|family name|surname|last_name|lastname/i],
+  ["dob", /birth|\bdob\b/i],
+  ["sex", /\bsex\b|\bgender\b/i],
+  ["phone", /phone|mobile|telephone/i],
+  ["address", /address/i],
+  ["fullName", /\bname\b/i],
+  ["allergies", /allerg/i],
+  ["medications", /medicat|prescription|\bdrugs?\b/i],
+  ["conditions", /condition|diagnos|medical history|health problem|chronic|history of/i],
+];
+// A question about someone or something else (a guardian's phone, the
+// patient's doctor, an email address) must not get the patient's own value.
+const PREFILL_NOT_THE_PATIENT = /emergency|guardian|parent|spouse|partner|subscriber|employer|physician|doctor|provider|pharmac|referr|e-?mail/i;
+
+function prefillHaystack(qItem) {
+  return `${qItem.text ?? ""} ${qItem.linkId ?? ""}`;
+}
+
+function prefillTopic(qItem) {
+  const hay = prefillHaystack(qItem);
+  if (PREFILL_NOT_THE_PATIENT.test(hay)) return null;
+  return PREFILL_TOPICS.find(([, re]) => re.test(hay))?.[0] ?? null;
+}
+
+function optionLabel(option) {
+  return option.valueCoding?.display ?? option.valueString ?? option.valueCoding?.code ?? "";
+}
+
+// Returns undefined (leave blank) or { value } / { keys, other } in the shape
+// the form's `values` map uses.
+function prefillAnswer(qItem) {
+  const topic = prefillTopic(qItem);
+  switch (qItem.type) {
+    case "string":
+    case "text": {
+      if (!topic) return undefined;
+      const fact = PREFILL_FACTS[topic];
+      const value = Array.isArray(fact) ? fact.join("; ") : fact;
+      return value ? { value } : undefined;
+    }
+    case "date":
+      return topic === "dob" ? { value: PREFILL_FACTS.dob } : undefined;
+    case "boolean": {
+      const hay = prefillHaystack(qItem);
+      const namesAKnownFact = PREFILL_LIST_TOPICS.some((t) => PREFILL_PATTERNS[t].some((re) => re.test(hay)));
+      const asksAboutAny = PREFILL_LIST_TOPICS.includes(topic) && /\bany\b/i.test(hay) && PREFILL_FACTS[topic].length > 0;
+      return namesAKnownFact || asksAboutAny ? { value: true } : undefined;
+    }
+    case "choice":
+    case "open-choice": {
+      const patterns = topic === "sex"
+        ? PREFILL_PATTERNS.sex
+        : PREFILL_LIST_TOPICS.includes(topic)
+          ? PREFILL_PATTERNS[topic]
+          : topic
+            ? []
+            : PREFILL_LIST_TOPICS.flatMap((t) => PREFILL_PATTERNS[t]);
+      const keys = (qItem.answerOption ?? [])
+        .filter((o) => o.valueCoding && patterns.some((re) => re.test(optionLabel(o))))
+        .map((o) => codingKey(o.valueCoding));
+      const other = !keys.length && qItem.type === "open-choice" && PREFILL_LIST_TOPICS.includes(topic)
+        ? PREFILL_FACTS[topic].join("; ")
+        : "";
+      if (!keys.length && !other) return undefined;
+      return { keys: qItem.repeats ? keys : keys.slice(0, 1), other };
+    }
+    default:
+      return undefined;
+  }
+}
+
+// Fills `values` in place and returns the set of linkIds that were prefilled.
+function applyPrefill(questionnaire, values) {
+  const prefilled = new Set();
+  for (const qItem of flattenQuestionnaireItems(questionnaire.item)) {
+    if (qItem.type === "group" || qItem.type === "display") continue;
+    const answer = prefillAnswer(qItem);
+    if (!answer) continue;
+    if ("keys" in answer) {
+      if (qItem.repeats) values[qItem.linkId] = answer.keys;
+      else if (answer.keys.length) values[qItem.linkId] = answer.keys[0];
+      if (answer.other) values[`${qItem.linkId}__other`] = answer.other;
+    } else {
+      values[qItem.linkId] = answer.value;
+    }
+    prefilled.add(qItem.linkId);
+  }
+  return prefilled;
+}
+
 function buildQuestionnaireResponse(item, questionnaire, values) {
   const canonical = item.content.questionnaireCanonical ?? questionnaire?.url;
   const qrItems = (questionnaire.item ?? []).map((qi) => qrItemFor(qi, values)).filter(Boolean);
@@ -832,6 +966,7 @@ function renderQuestionnaireItem(qItem, values, container, ctx) {
     const input = el("input", {
       type: "checkbox",
       id: `q-${qItem.linkId}`,
+      checked: values[qItem.linkId] === true ? "" : undefined,
       onchange: (e) => {
         values[qItem.linkId] = e.target.checked;
         notify();
@@ -845,10 +980,12 @@ function renderQuestionnaireItem(qItem, values, container, ctx) {
     for (const opt of qItem.answerOption ?? []) {
       const key = codingKey(opt.valueCoding);
       const id = `q-${qItem.linkId}-${key}`;
+      const selected = isRepeating ? values[qItem.linkId].includes(key) : values[qItem.linkId] === key;
       const input = el("input", {
         type: isRepeating ? "checkbox" : "radio",
         ...(isRepeating ? {} : { name: `q-${qItem.linkId}` }),
         id,
+        checked: selected ? "" : undefined,
         onchange: (e) => {
           if (isRepeating) {
             const arr = values[qItem.linkId];
@@ -869,6 +1006,7 @@ function renderQuestionnaireItem(qItem, values, container, ctx) {
         type: "text",
         id: otherId,
         placeholder: "Something else…",
+        value: values[`${qItem.linkId}__other`],
         oninput: (e) => {
           values[`${qItem.linkId}__other`] = e.target.value;
           notify();
@@ -881,6 +1019,7 @@ function renderQuestionnaireItem(qItem, values, container, ctx) {
     wrap.appendChild(el("input", {
       type: "number",
       step: qItem.type === "decimal" ? "any" : "1",
+      value: values[qItem.linkId],
       oninput: (e) => {
         values[qItem.linkId] = e.target.value;
         notify();
@@ -889,6 +1028,7 @@ function renderQuestionnaireItem(qItem, values, container, ctx) {
   } else if (qItem.type === "date") {
     wrap.appendChild(el("input", {
       type: "date",
+      value: values[qItem.linkId],
       oninput: (e) => {
         values[qItem.linkId] = e.target.value;
         notify();
@@ -898,11 +1038,15 @@ function renderQuestionnaireItem(qItem, values, container, ctx) {
     // string, text, and anything else we don't specifically handle
     wrap.appendChild(el("input", {
       type: "text",
+      value: values[qItem.linkId],
       oninput: (e) => {
         values[qItem.linkId] = e.target.value;
         notify();
       },
     }));
+  }
+  if (ctx?.prefilled?.has(qItem.linkId)) {
+    wrap.appendChild(el("span", { class: "pill", style: "align-self:flex-start" }, "Prefilled from your records"));
   }
   container.appendChild(wrap);
   ctx?.registry.set(qItem.linkId, { wrapper: wrap, qItem });
@@ -943,12 +1087,33 @@ function itemCard({ item, unsupported, decisions, formState, onToggle }) {
     const form = formState[item.id];
     const block = el("div", { class: "form-block" });
     if (form?.questionnaire) {
-      const values = (decisions[item.id].answers ??= {});
-      const registry = new Map();
-      const ctx = { registry, refresh: null };
-      ctx.refresh = makeVisibilityRefresh(registry, values);
-      for (const qItem of form.questionnaire.item ?? []) renderQuestionnaireItem(qItem, values, block, ctx);
-      ctx.refresh();
+      const decision = decisions[item.id];
+      const values = (decision.answers ??= {});
+      decision.prefilled ??= applyPrefill(form.questionnaire, values);
+      const draw = () => {
+        block.innerHTML = "";
+        if (decision.prefilled.size) {
+          block.appendChild(
+            el("p", { class: "muted" }, "Some answers were filled in from this wallet's record. Check them and change anything that's wrong before sharing."),
+          );
+          block.appendChild(
+            el("button", {
+              type: "button",
+              onclick: () => {
+                for (const key of Object.keys(values)) delete values[key];
+                decision.prefilled = new Set();
+                draw();
+              },
+            }, "Clear prefilled answers"),
+          );
+        }
+        const registry = new Map();
+        const ctx = { registry, refresh: null, prefilled: decision.prefilled };
+        ctx.refresh = makeVisibilityRefresh(registry, values);
+        for (const qItem of form.questionnaire.item ?? []) renderQuestionnaireItem(qItem, values, block, ctx);
+        ctx.refresh();
+      };
+      draw();
     } else {
       block.appendChild(el("p", { class: "muted" }, "Could not load this form."));
     }
@@ -1151,7 +1316,7 @@ function renderWalletTab({ opened }) {
     ["health-card, insurance-card", "Not supported", "off", "Needs real SMART Health Card signing; the client library has no wallet-side signer."],
     ["cross-device, in-person-handoff", "Not possible here", "off", "Native Android wallet only; a web wallet can't do these."],
     ["write-back", "Not a wallet role", "off", "Happens on the EHR/Verifier side."],
-    ["prefilled-form", "Not supported", "off", "The form has no LOINC codes to key a prefill on."],
+    ["prefilled-form", "Supported (best effort)", "", "Answers are filled from the record by matching question text and option labels (the forms carry no LOINC codes), shown with a “Prefilled” tag, and stay editable. Unrecognized questions are left blank."],
   ];
   const coverageList = el("div", { class: "status-list" });
   for (const [scenario, label, tone, note] of coverageRows) {
@@ -1346,6 +1511,49 @@ const PHYSICIAN_QUESTIONNAIRE = {
   ],
 };
 
+// Our own demo form (not a connectathon one) for the prefilled-form scenario.
+// Mixes questions the record can answer with ones it must leave blank --
+// including look-alikes (emergency contact, email) that must NOT be prefilled.
+const PREFILL_DEMO_QUESTIONNAIRE = {
+  resourceType: "Questionnaire",
+  url: "https://crookhaven.github.io/M5-Health/test-wallet/questionnaires/registration-demo",
+  version: "1",
+  status: "active",
+  title: "Registration (prefill demo)",
+  item: [
+    { linkId: "first-name", text: "First name", type: "string" },
+    { linkId: "last-name", text: "Last name", type: "string" },
+    { linkId: "dob", text: "Date of birth", type: "date" },
+    {
+      linkId: "sex",
+      text: "Sex",
+      type: "choice",
+      answerOption: [
+        { valueCoding: { system: "urn:demo", code: "f", display: "Female" } },
+        { valueCoding: { system: "urn:demo", code: "m", display: "Male" } },
+        { valueCoding: { system: "urn:demo", code: "o", display: "Another" } },
+      ],
+    },
+    { linkId: "emergency-name", text: "Emergency contact name", type: "string" },
+    { linkId: "email", text: "Email address", type: "string" },
+    {
+      linkId: "allergies",
+      text: "Allergies (select all that apply)",
+      type: "open-choice",
+      repeats: true,
+      answerOption: [
+        { valueCoding: { system: "urn:demo", code: "latex", display: "Latex" } },
+        { valueCoding: { system: "urn:demo", code: "pcn", display: "Penicillin" } },
+        { valueCoding: { system: "urn:demo", code: "nuts", display: "Peanut" } },
+      ],
+    },
+    { linkId: "meds", text: "Current medications", type: "text" },
+    { linkId: "diabetes", text: "Do you have diabetes?", type: "boolean" },
+    { linkId: "asthma", text: "Do you have asthma?", type: "boolean" },
+    { linkId: "travel", text: "Any recent travel outside the country?", type: "string" },
+  ],
+};
+
 const SAMPLE_REQUEST = {
   type: "smart-health-checkin-request",
   version: "1",
@@ -1380,6 +1588,13 @@ const SAMPLE_REQUEST = {
       accept: [FHIR_MEDIA_TYPE],
     },
     {
+      id: "registration",
+      title: "Registration",
+      summary: "prefilled-form demo: answers the record can supply are filled in and tagged; the rest stay blank.",
+      content: { kind: "form.fhir", questionnaireCanonical: PREFILL_DEMO_QUESTIONNAIRE.url + "|1", questionnaire: PREFILL_DEMO_QUESTIONNAIRE },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
       id: "semaglutide",
       title: "How your new medicine is going",
       summary: "A short check-in about your first month on semaglutide -- physician-form (enableWhen + repeats).",
@@ -1400,6 +1615,7 @@ function showPreview() {
   const formState = {
     phq2: { questionnaire: PHQ2_QUESTIONNAIRE },
     semaglutide: { questionnaire: PHYSICIAN_QUESTIONNAIRE },
+    registration: { questionnaire: PREFILL_DEMO_QUESTIONNAIRE },
   };
   renderConsentScreen({
     request: SAMPLE_REQUEST,
