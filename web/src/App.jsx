@@ -12,6 +12,7 @@ import PatientBar from './components/PatientBar'
 import FamilyOverview from './components/FamilyOverview'
 import ComparePlans from './components/ComparePlans'
 import SharePanel from './components/SharePanel'
+import ConnectathonPanel from './components/ConnectathonPanel'
 import { DATASETS, DATASET_ORDER } from './lib/datasets'
 import './App.css'
 
@@ -22,6 +23,7 @@ const TABS = [
   { key: 'clinical', label: 'Clinical view' },
   { key: 'compare', label: 'Compare plans' },
   { key: 'share', label: 'Share & Export' },
+  { key: 'connectathon', label: 'Connectathon' },
 ]
 
 const DATA_VIEWS = [
@@ -136,6 +138,7 @@ function AppContent() {
         {tab === 'share' && (
           <SharePanel sourceRecords={sourceRecords} />
         )}
+        {tab === 'connectathon' && <ConnectathonPanel />}
       </main>
     </div>
   )
