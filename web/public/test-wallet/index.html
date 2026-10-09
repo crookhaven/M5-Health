@@ -1136,9 +1136,38 @@ function renderWalletTab({ opened }) {
     app.appendChild(el("p", { class: "muted" }, "Opened directly, not from a check-in page, so there's nothing to answer right now. Use the Verifier tab above to send yourself a request instead."));
   }
 
+  const coverageCard = el("div", { class: "card" });
+  coverageCard.appendChild(el("h2", {}, "What this wallet can and can't do"));
+  coverageCard.appendChild(
+    el("p", { class: "muted" }, "This reflects what this page's code handles. It has not been checked against every team's Verifier, so treat “Supported” as “built to handle”, not “certified”. Preview, or a Verifier-tab round trip to this same URL, are the quickest self-checks."),
+  );
+  const coverageRows = [
+    ["demographics, problems, medications (minimum scenarios)", "Supported", "", "Answered from the synthetic patient record."],
+    ["any-us-core, decline-all, no-selector, unknown-selector", "Supported", "", "Profile-based matching plus the library's own fallbacks."],
+    ["large-response, narrowed-family", "Supported", "", "Served from a generated ~3.2 MB, 5-year synthetic vitals/labs history."],
+    ["form-by-reference, versioned-canonical", "Supported", "", "A bare canonical is fetched; any |version suffix is echoed back."],
+    ["physician-form", "Supported", "", "enableWhen, repeats and open-choice, against whatever Questionnaire the Verifier sends."],
+    ["shared-artifact", "Supported (opt-in)", "", "Toggle “combine shareable records” on the consent screen; off by default."],
+    ["health-card, insurance-card", "Not supported", "off", "Needs real SMART Health Card signing; the client library has no wallet-side signer."],
+    ["cross-device, in-person-handoff", "Not possible here", "off", "Native Android wallet only; a web wallet can't do these."],
+    ["write-back", "Not a wallet role", "off", "Happens on the EHR/Verifier side."],
+    ["prefilled-form", "Not supported", "off", "The form has no LOINC codes to key a prefill on."],
+  ];
+  const coverageList = el("div", { class: "status-list" });
+  for (const [scenario, label, tone, note] of coverageRows) {
+    coverageList.appendChild(
+      el("div", { class: "item-meta" }, [
+        el("div", { class: "status-row" }, [el("span", { class: "item-title" }, scenario), statusPill(label, tone)]),
+        el("span", { class: "item-summary" }, note),
+      ]),
+    );
+  }
+  coverageCard.appendChild(coverageList);
+  app.appendChild(coverageCard);
+
   app.appendChild(
     el("p", { class: "footer-note" }, [
-      "Not yet implemented: SMART Health Card artifacts (application/smart-health-card) -- needed for the health-card and insurance-card scenarios -- plus the cross-device and in-person-handoff flows, which are native-wallet-only. See ",
+      "Synthetic data only. Source: ",
       el("a", { href: "https://github.com/crookhaven/M5-Health", target: "_blank", rel: "noopener" }, "crookhaven/M5-Health"),
       ".",
     ]),
