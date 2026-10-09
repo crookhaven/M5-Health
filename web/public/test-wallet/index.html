@@ -151,6 +151,37 @@
 // Served as a plain static file (web/public/test-wallet/), so it carries no
 // Content-Security-Policy restrictions and can load the library straight
 // from its own host.
+//
+// Scenario coverage (see https://smart-health-checkin.org/connectathon/ and
+// .../advanced.html):
+//   Minimum scenarios -- demographics / problems / medications: supported.
+//   any-us-core, decline-all, no-selector, unknown-selector: supported
+//     (generic profile-based matching + the library's own fallbacks).
+//   large-response, narrowed-family: supported -- see the synthetic
+//     vitals/labs generator below, which exists specifically to give the
+//     "everything in US Core" and "Observation-only" requests enough volume
+//     and the right profile tags to exercise both scenarios.
+//   form-by-reference, versioned-canonical: supported (resolveFormState
+//     below fetches a bare questionnaireCanonical; the canonical is echoed
+//     back verbatim including any |version suffix).
+//   physician-form (enableWhen + repeats/open-choice): supported -- see
+//     isItemEnabled/conditionMet and the choice/open-choice branch of
+//     renderQuestionnaireItem. This logic runs against whatever Questionnaire
+//     a real Verifier sends inline, so it isn't tied to the local PHYSICIAN_QUESTIONNAIRE
+//     reconstruction below (kept only for the no-Verifier "Preview" button --
+//     see the note where it's defined).
+//   shared-artifact: supported -- see the "combine shareable records" toggle
+//     on the consent screen and the pendingSelections merge in buildResponse.
+//     Defaults OFF so it never changes the response shape for the minimum
+//     scenarios; turn it on to test this one specifically.
+//   health-card, insurance-card: NOT implemented. Both need a real SMART
+//     Health Card signature (ES256 JWS + DEFLATE); the client library has
+//     no wallet-side signer, only a fake-signature test fixture.
+//   cross-device, in-person-handoff: not applicable to a web wallet (native
+//     Android wallet + phone Credential Manager only).
+//   write-back: not applicable to the wallet role (Verifier/EHR-side only).
+//   prefilled-form: ambiguous for this form -- the semaglutide questionnaire
+//     has no LOINC codes to key a prefill off of. Not implemented.
 import {
   serveWebWallet,
   declineAll,
@@ -171,7 +202,8 @@ const PATIENT_URL = "urn:uuid:m5-test-patient";
 const PRESCRIBER_URL = "urn:uuid:m5-test-prescriber";
 const PAYER_URL = "urn:uuid:m5-test-payer";
 
-const US_CORE = "http://hl7.org/fhir/us/core/StructureDefinition/";
+const US_CORE_IG = "http://hl7.org/fhir/us/core";
+const US_CORE = US_CORE_IG + "/StructureDefinition/";
 const C4DIC_COVERAGE = "http://hl7.org/fhir/us/insurance-card/StructureDefinition/C4DIC-Coverage";
 
 const RECORD_ENTRIES = [
@@ -358,7 +390,99 @@ const RECORD_ENTRIES = [
   },
 ];
 
-const ALL_ENTRIES = RECORD_ENTRIES;
+// ---------------------------------------------------------------------------
+// Bulk synthetic vitals/labs history -- generated, not hand-written.
+//
+// Exists specifically for two advanced scenarios:
+//   - narrowed-family: a request that asks for Observations only (profilesFrom
+//     US Core + resourceTypes: ["Observation"], see the real
+//     connectathon/requests/observations.json). Needs *some* profiled
+//     Observation data to match against at all -- the base record above had
+//     none.
+//   - large-response / any-us-core at scale: the same "everything in US Core"
+//     request (connectathon/requests/uscdi.json) used for both any-us-core
+//     and large-response. To actually exercise the "large" case the response
+//     needs to clear roughly 1MB; a handful of hand-written resources never
+//     will, so this generates several years of daily vitals plus weekly labs
+//     instead. Target is comfortably over 1MB with margin, not exactly 1MB.
+// ---------------------------------------------------------------------------
+
+function daysAgoISO(n) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+function generateVitalsHistory(years) {
+  const days = years * 365;
+  const entries = [];
+  for (let i = 0; i < days; i++) {
+    const date = daysAgoISO(i);
+    const systolic = 118 + Math.round(6 * Math.sin(i / 17)) + (i % 5);
+    const diastolic = 76 + Math.round(4 * Math.sin(i / 23));
+    const hr = 68 + (i % 11);
+    entries.push({
+      fullUrl: `urn:uuid:m5-vitals-${i}`,
+      resource: {
+        resourceType: "Observation",
+        id: `m5-vitals-${i}`,
+        meta: { profile: [US_CORE + "us-core-vital-signs", US_CORE + "us-core-blood-pressure"] },
+        status: "final",
+        category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
+        code: { coding: [{ system: "http://loinc.org", code: "85354-9", display: "Blood pressure panel with all children optional" }] },
+        subject: { reference: PATIENT_URL },
+        effectiveDateTime: date,
+        component: [
+          { code: { coding: [{ system: "http://loinc.org", code: "8480-6", display: "Systolic blood pressure" }] }, valueQuantity: { value: systolic, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" } },
+          { code: { coding: [{ system: "http://loinc.org", code: "8462-4", display: "Diastolic blood pressure" }] }, valueQuantity: { value: diastolic, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" } },
+          { code: { coding: [{ system: "http://loinc.org", code: "8867-4", display: "Heart rate" }] }, valueQuantity: { value: hr, unit: "/min", system: "http://unitsofmeasure.org", code: "/min" } },
+        ],
+      },
+    });
+    entries.push({
+      fullUrl: `urn:uuid:m5-weight-${i}`,
+      resource: {
+        resourceType: "Observation",
+        id: `m5-weight-${i}`,
+        meta: { profile: [US_CORE + "us-core-vital-signs"] },
+        status: "final",
+        category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
+        code: { coding: [{ system: "http://loinc.org", code: "29463-7", display: "Body weight" }] },
+        subject: { reference: PATIENT_URL },
+        effectiveDateTime: date,
+        valueQuantity: { value: 172 + Math.round(3 * Math.sin(i / 40)), unit: "lbs", system: "http://unitsofmeasure.org", code: "[lb_av]" },
+      },
+    });
+  }
+  return entries;
+}
+
+function generateLabHistory(years) {
+  const weeks = years * 52;
+  const entries = [];
+  for (let i = 0; i < weeks; i++) {
+    const date = daysAgoISO(i * 7);
+    const a1c = Math.round((6.8 + 0.4 * Math.sin(i / 10)) * 10) / 10;
+    entries.push({
+      fullUrl: `urn:uuid:m5-lab-${i}`,
+      resource: {
+        resourceType: "Observation",
+        id: `m5-lab-${i}`,
+        meta: { profile: [US_CORE + "us-core-observation-lab"] },
+        status: "final",
+        category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "laboratory" }] }],
+        code: { coding: [{ system: "http://loinc.org", code: "4548-4", display: "Hemoglobin A1c/Hemoglobin.total in Blood" }] },
+        subject: { reference: PATIENT_URL },
+        effectiveDateTime: date,
+        valueQuantity: { value: a1c, unit: "%", system: "http://unitsofmeasure.org", code: "%" },
+      },
+    });
+  }
+  return entries;
+}
+
+const BULK_HISTORY_ENTRIES = [...generateVitalsHistory(5), ...generateLabHistory(10)];
+const ALL_ENTRIES = [...RECORD_ENTRIES, ...BULK_HISTORY_ENTRIES];
 const PATIENT_RESOURCE = RECORD_ENTRIES.find((e) => e.fullUrl === PATIENT_URL).resource;
 
 // ---------------------------------------------------------------------------
@@ -388,10 +512,26 @@ function buildSelectionArtifact(item, entries) {
   };
 }
 
-// Generic-enough to answer a form.fhir item the page has never seen before,
-// not just the connectathon's own PHQ-2. Supports: group, display, boolean,
-// string, text, integer, decimal, date, choice, open-choice. Does not
-// implement enableWhen or repeats -- every item is shown and answered flat.
+// Approximate serialized size of a set of matched entries, for display only
+// (not used in any matching decision). Good enough to show "this is the big
+// one" without pretending to be the exact byte count the wire format sends.
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+function entriesSize(entries) {
+  return JSON.stringify(entries.map((e) => e.resource)).length;
+}
+
+// ---------------------------------------------------------------------------
+// Questionnaire support: group, display, boolean, string, text, integer,
+// decimal, date, choice, open-choice, with enableWhen (any/all behavior,
+// operators exists/=/!=) and repeats (multi-select + free text for
+// open-choice). Generic -- this isn't tied to the PHQ-2 or semaglutide forms,
+// it answers whatever Questionnaire a request actually supplies.
+// ---------------------------------------------------------------------------
+
 function flattenQuestionnaireItems(items, out = []) {
   for (const item of items ?? []) {
     out.push(item);
@@ -404,35 +544,67 @@ function codingKey(coding) {
   return coding ? `${coding.system ?? ""}|${coding.code ?? ""}` : "";
 }
 
+function conditionMet(cond, values) {
+  const raw = values[cond.question];
+  const hasValue = Array.isArray(raw)
+    ? raw.length > 0
+    : raw !== undefined && raw !== "" && raw !== null && raw !== false;
+  if (cond.operator === "exists") {
+    const want = cond.answerBoolean !== false; // default: enabled when the answer exists
+    return hasValue === want;
+  }
+  const target = cond.answerCoding ? codingKey(cond.answerCoding)
+    : cond.answerBoolean !== undefined ? cond.answerBoolean
+    : cond.answerString !== undefined ? cond.answerString
+    : cond.answerInteger !== undefined ? cond.answerInteger
+    : cond.answerDecimal;
+  const actual = Array.isArray(raw) ? raw : [raw];
+  const matches = actual.some((v) => v === target);
+  return cond.operator === "!=" ? !matches : matches; // "=" and anything unrecognized fall back to equality
+}
+
+function isItemEnabled(qItem, values) {
+  if (!qItem.enableWhen?.length) return true;
+  const results = qItem.enableWhen.map((c) => conditionMet(c, values));
+  return qItem.enableBehavior === "all" ? results.every(Boolean) : results.some(Boolean);
+}
+
 function qrItemFor(qItem, values) {
+  if (!isItemEnabled(qItem, values)) return null;
   const children = (qItem.item ?? []).map((child) => qrItemFor(child, values)).filter(Boolean);
-  const raw = values[qItem.linkId];
   let answer;
-  if (raw !== undefined && raw !== "" && raw !== null && raw !== false) {
-    switch (qItem.type) {
-      case "boolean":
-        answer = [{ valueBoolean: true }];
-        break;
-      case "integer":
-        answer = [{ valueInteger: Number(raw) }];
-        break;
-      case "decimal":
-        answer = [{ valueDecimal: Number(raw) }];
-        break;
-      case "date":
-        answer = [{ valueDate: raw }];
-        break;
-      case "choice":
-      case "open-choice": {
-        const opt = (qItem.answerOption ?? []).find((o) => codingKey(o.valueCoding) === raw);
-        answer = opt ? [{ valueCoding: opt.valueCoding }] : [{ valueString: String(raw) }];
-        break;
+  if (qItem.type === "choice" || qItem.type === "open-choice") {
+    const raw = values[qItem.linkId];
+    const keys = qItem.repeats ? (Array.isArray(raw) ? raw : []) : raw ? [raw] : [];
+    const built = keys.map((key) => {
+      const opt = (qItem.answerOption ?? []).find((o) => codingKey(o.valueCoding) === key);
+      return opt ? { valueCoding: opt.valueCoding } : { valueString: key };
+    });
+    const other = values[`${qItem.linkId}__other`];
+    if (other) built.push({ valueString: other });
+    if (built.length) answer = built;
+  } else {
+    const raw = values[qItem.linkId];
+    if (raw !== undefined && raw !== "" && raw !== null && raw !== false) {
+      switch (qItem.type) {
+        case "boolean":
+          answer = [{ valueBoolean: true }];
+          break;
+        case "integer":
+          answer = [{ valueInteger: Number(raw) }];
+          break;
+        case "decimal":
+          answer = [{ valueDecimal: Number(raw) }];
+          break;
+        case "date":
+          answer = [{ valueDate: raw }];
+          break;
+        default:
+          answer = [{ valueString: String(raw) }];
       }
-      default:
-        answer = [{ valueString: String(raw) }];
     }
   }
-  if (!answer && children.length === 0) return null; // omit unanswered leaf items
+  if (!answer && children.length === 0) return null; // omit unanswered/disabled leaf items
   return {
     linkId: qItem.linkId,
     text: qItem.text,
@@ -465,10 +637,18 @@ function unsupportedIdOf(entry) {
   return entry?.item ?? entry?.id ?? entry?.itemId;
 }
 
-function buildResponse(request, unsupportedItems, decisions, formState) {
+// `options.combineShared`: when true, every selection.fhir item that matched
+// at least one record is pooled and answered with ONE shared Bundle artifact
+// (fulfills listing every item it satisfies, entries de-duplicated by
+// fullUrl) instead of one artifact per item. Defaults to false so the
+// minimum-scenario response shape never changes unless this is deliberately
+// turned on -- see the "shared-artifact" scenario.
+function buildResponse(request, unsupportedItems, decisions, formState, options = {}) {
+  const combineShared = !!options.combineShared;
   const unsupportedIds = new Set((unsupportedItems ?? []).map(unsupportedIdOf).filter(Boolean));
   const requestStatus = [];
   const artifacts = [];
+  const pendingSelections = [];
 
   for (const item of request.items) {
     if (unsupportedIds.has(item.id)) {
@@ -492,6 +672,8 @@ function buildResponse(request, unsupportedItems, decisions, formState) {
       const entries = selectEntries(item.content, ALL_ENTRIES, { exclude: excludeFor(item) });
       if (entries.length === 0) {
         requestStatus.push({ item: item.id, status: "unavailable" });
+      } else if (combineShared) {
+        pendingSelections.push({ item, entries });
       } else {
         artifacts.push(buildSelectionArtifact(item, entries));
         requestStatus.push({ item: item.id, status: "fulfilled" });
@@ -523,6 +705,29 @@ function buildResponse(request, unsupportedItems, decisions, formState) {
 
     // Unknown content kind the library didn't already flag.
     requestStatus.push({ item: item.id, status: "unsupported" });
+  }
+
+  if (pendingSelections.length === 1) {
+    const { item, entries } = pendingSelections[0];
+    artifacts.push(buildSelectionArtifact(item, entries));
+    requestStatus.push({ item: item.id, status: "fulfilled" });
+  } else if (pendingSelections.length > 1) {
+    const merged = new Map();
+    for (const { entries } of pendingSelections) {
+      for (const e of entries) merged.set(e.fullUrl, e);
+    }
+    artifacts.push({
+      id: `artifact-shared-${pendingSelections.map((p) => p.item.id).join("-")}`,
+      mediaType: FHIR_MEDIA_TYPE,
+      fhirVersion: FHIR_VERSION,
+      fulfills: pendingSelections.map((p) => p.item.id),
+      value: {
+        resourceType: "Bundle",
+        type: "collection",
+        entry: [...merged.values()].map((e) => ({ fullUrl: e.fullUrl, resource: e.resource })),
+      },
+    });
+    for (const { item } of pendingSelections) requestStatus.push({ item: item.id, status: "fulfilled" });
   }
 
   return {
@@ -559,44 +764,110 @@ function statusPill(text, kind) {
   return el("span", { class: `pill${kind ? ` ${kind}` : ""}` }, text);
 }
 
+// Tracks every rendered Questionnaire item by linkId so enableWhen can
+// re-evaluate visibility on every change, anywhere in the form.
+function makeVisibilityRefresh(registry, values) {
+  return function refresh() {
+    for (const { wrapper, qItem } of registry.values()) {
+      if (qItem.enableWhen?.length) wrapper.hidden = !isItemEnabled(qItem, values);
+    }
+  };
+}
+
 // Renders one Questionnaire item (recursively for groups) into `container`,
-// wiring plain form controls that write into `values` by linkId.
-function renderQuestionnaireItem(qItem, values, container) {
+// wiring plain form controls that write into `values` by linkId. `ctx`
+// (optional) carries { registry, refresh } for enableWhen support.
+function renderQuestionnaireItem(qItem, values, container, ctx) {
   if (qItem.type === "display") {
-    container.appendChild(el("p", { class: "q-text" }, qItem.text));
+    const node = el("p", { class: "q-text" }, qItem.text);
+    container.appendChild(node);
+    ctx?.registry.set(qItem.linkId, { wrapper: node, qItem });
     return;
   }
   const wrap = el("div", { class: "q-item" });
   if (qItem.text) wrap.appendChild(el("div", { class: "q-text" }, qItem.text));
+  const notify = () => ctx?.refresh();
 
   if (qItem.type === "group") {
-    for (const child of qItem.item ?? []) renderQuestionnaireItem(child, values, wrap);
+    for (const child of qItem.item ?? []) renderQuestionnaireItem(child, values, wrap, ctx);
   } else if (qItem.type === "boolean") {
-    const input = el("input", { type: "checkbox", id: `q-${qItem.linkId}`, onchange: (e) => (values[qItem.linkId] = e.target.checked) });
+    const input = el("input", {
+      type: "checkbox",
+      id: `q-${qItem.linkId}`,
+      onchange: (e) => {
+        values[qItem.linkId] = e.target.checked;
+        notify();
+      },
+    });
     wrap.appendChild(el("label", { for: `q-${qItem.linkId}` }, [input, " Yes"]));
   } else if (qItem.type === "choice" || qItem.type === "open-choice") {
+    const isRepeating = !!qItem.repeats;
+    if (isRepeating && !Array.isArray(values[qItem.linkId])) values[qItem.linkId] = [];
     const options = el("div", { class: "q-options" });
     for (const opt of qItem.answerOption ?? []) {
       const key = codingKey(opt.valueCoding);
       const id = `q-${qItem.linkId}-${key}`;
       const input = el("input", {
-        type: "radio",
-        name: `q-${qItem.linkId}`,
+        type: isRepeating ? "checkbox" : "radio",
+        ...(isRepeating ? {} : { name: `q-${qItem.linkId}` }),
         id,
-        onchange: () => (values[qItem.linkId] = key),
+        onchange: (e) => {
+          if (isRepeating) {
+            const arr = values[qItem.linkId];
+            const idx = arr.indexOf(key);
+            if (e.target.checked && idx === -1) arr.push(key);
+            else if (!e.target.checked && idx !== -1) arr.splice(idx, 1);
+          } else {
+            values[qItem.linkId] = key;
+          }
+          notify();
+        },
       });
       options.appendChild(el("label", { class: "q-option", for: id }, [input, opt.valueCoding?.display ?? opt.valueCoding?.code ?? "(option)"]));
     }
+    if (qItem.type === "open-choice") {
+      const otherId = `q-${qItem.linkId}-other`;
+      const otherInput = el("input", {
+        type: "text",
+        id: otherId,
+        placeholder: "Something else…",
+        oninput: (e) => {
+          values[`${qItem.linkId}__other`] = e.target.value;
+          notify();
+        },
+      });
+      options.appendChild(el("label", { class: "q-option", for: otherId }, [otherInput, " Something else"]));
+    }
     wrap.appendChild(options);
   } else if (qItem.type === "integer" || qItem.type === "decimal") {
-    wrap.appendChild(el("input", { type: "number", step: qItem.type === "decimal" ? "any" : "1", oninput: (e) => (values[qItem.linkId] = e.target.value) }));
+    wrap.appendChild(el("input", {
+      type: "number",
+      step: qItem.type === "decimal" ? "any" : "1",
+      oninput: (e) => {
+        values[qItem.linkId] = e.target.value;
+        notify();
+      },
+    }));
   } else if (qItem.type === "date") {
-    wrap.appendChild(el("input", { type: "date", oninput: (e) => (values[qItem.linkId] = e.target.value) }));
+    wrap.appendChild(el("input", {
+      type: "date",
+      oninput: (e) => {
+        values[qItem.linkId] = e.target.value;
+        notify();
+      },
+    }));
   } else {
     // string, text, and anything else we don't specifically handle
-    wrap.appendChild(el("input", { type: "text", oninput: (e) => (values[qItem.linkId] = e.target.value) }));
+    wrap.appendChild(el("input", {
+      type: "text",
+      oninput: (e) => {
+        values[qItem.linkId] = e.target.value;
+        notify();
+      },
+    }));
   }
   container.appendChild(wrap);
+  ctx?.registry.set(qItem.linkId, { wrapper: wrap, qItem });
 }
 
 function itemCard({ item, unsupported, decisions, formState, onToggle }) {
@@ -635,7 +906,11 @@ function itemCard({ item, unsupported, decisions, formState, onToggle }) {
     const block = el("div", { class: "form-block" });
     if (form?.questionnaire) {
       const values = (decisions[item.id].answers ??= {});
-      for (const qItem of form.questionnaire.item ?? []) renderQuestionnaireItem(qItem, values, block);
+      const registry = new Map();
+      const ctx = { registry, refresh: null };
+      ctx.refresh = makeVisibilityRefresh(registry, values);
+      for (const qItem of form.questionnaire.item ?? []) renderQuestionnaireItem(qItem, values, block, ctx);
+      ctx.refresh();
     } else {
       block.appendChild(el("p", { class: "muted" }, "Could not load this form."));
     }
@@ -647,7 +922,7 @@ function itemCard({ item, unsupported, decisions, formState, onToggle }) {
         "p",
         { class: "bundle-note" },
         entries.length
-          ? `Matches ${entries.length} record${entries.length === 1 ? "" : "s"} in this test wallet.`
+          ? `Matches ${entries.length} record${entries.length === 1 ? "" : "s"} in this test wallet (~${formatBytes(entriesSize(entries))}).`
           : "No matching record in this test wallet -- will be reported as unavailable.",
       ),
     );
@@ -660,6 +935,7 @@ function renderConsentScreen({ request, origin, unsupportedItems, formState, onS
   app.innerHTML = "";
   const decisions = {};
   for (const item of request.items) decisions[item.id] = { share: true, answers: {} };
+  const combineState = { value: false };
 
   const unsupportedIds = new Set((unsupportedItems ?? []).map(unsupportedIdOf).filter(Boolean));
 
@@ -672,6 +948,26 @@ function renderConsentScreen({ request, origin, unsupportedItems, formState, onS
     ]),
   );
   if (request.purpose) app.appendChild(el("p", { class: "muted" }, request.purpose));
+
+  const combineRow = el("div", { class: "item-row" });
+  combineRow.appendChild(
+    el("div", { class: "item-meta" }, [
+      el("div", { class: "item-title" }, "Combine shareable records into one bundle"),
+      el("div", { class: "item-summary" }, "When more than one item below can be answered with FHIR records, reply with a single shared bundle instead of one per item. Off by default; tests the “shared-artifact” scenario."),
+    ]),
+  );
+  const combineToggle = el("button", {
+    class: "toggle",
+    role: "switch",
+    "aria-checked": "false",
+    type: "button",
+    onclick: (e) => {
+      combineState.value = !combineState.value;
+      e.currentTarget.setAttribute("aria-checked", String(combineState.value));
+    },
+  });
+  combineRow.appendChild(combineToggle);
+  app.appendChild(el("div", { class: "card" }, [combineRow]));
 
   const list = el("div", { class: "status-list" });
   for (const item of request.items) {
@@ -688,9 +984,9 @@ function renderConsentScreen({ request, origin, unsupportedItems, formState, onS
 
   const actions = el("div", { class: "actions" });
   actions.appendChild(
-    el("button", { onclick: () => onSubmit(decisions) }, "Decline all"),
+    el("button", { onclick: () => onSubmit(decisions, combineState.value) }, "Decline all"),
   );
-  const shareBtn = el("button", { class: "primary", onclick: () => onSubmit(decisions) }, "Share selected items");
+  const shareBtn = el("button", { class: "primary", onclick: () => onSubmit(decisions, combineState.value) }, "Share selected items");
   actions.appendChild(shareBtn);
   app.appendChild(actions);
 
@@ -716,6 +1012,15 @@ function renderDone({ origin, response }) {
     );
   }
   app.appendChild(list);
+  if (response.artifacts?.length) {
+    app.appendChild(
+      el(
+        "p",
+        { class: "bundle-note" },
+        `${response.artifacts.length} artifact${response.artifacts.length === 1 ? "" : "s"} sent (~${formatBytes(JSON.stringify(response.artifacts).length)} total).`,
+      ),
+    );
+  }
   app.appendChild(el("div", { class: "actions" }, [el("button", { onclick: () => window.close() }, "Close window")]));
 }
 
@@ -753,7 +1058,7 @@ function renderLanding({ opened }) {
 
   const previewCard = el("div", { class: "card" });
   previewCard.appendChild(el("h2", {}, "Preview the consent screen"));
-  previewCard.appendChild(el("p", { class: "muted" }, "Shows this wallet's own UI against the connectathon's published test request (records.json + the PHQ-2 form), without a real Verifier or the signing/encryption step."));
+  previewCard.appendChild(el("p", { class: "muted" }, "Shows this wallet's own UI against a bundle of sample requests covering the minimum scenarios plus large-response, narrowed-family, physician-form (enableWhen + repeats), and shared-artifact (toggle), without a real Verifier or the signing/encryption step."));
   previewCard.appendChild(el("button", { onclick: showPreview }, "Preview"));
   app.appendChild(previewCard);
 
@@ -763,7 +1068,7 @@ function renderLanding({ opened }) {
 
   app.appendChild(
     el("p", { class: "footer-note" }, [
-      "Not yet implemented: SMART Health Card artifacts (application/smart-health-card), enableWhen/repeats on forms, and resolving a form by canonical URL with no inline copy. See ",
+      "Not yet implemented: SMART Health Card artifacts (application/smart-health-card) -- needed for the health-card and insurance-card scenarios -- plus the cross-device and in-person-handoff flows, which are native-wallet-only. See ",
       el("a", { href: "https://github.com/crookhaven/M5-Health", target: "_blank", rel: "noopener" }, "crookhaven/M5-Health"),
       ".",
     ]),
@@ -804,6 +1109,144 @@ const PHQ2_QUESTIONNAIRE = {
   ],
 };
 
+// A good-faith reconstruction of the connectathon's "physician-form" scenario
+// (connectathon/Questionnaire/semaglutide-4-week-checkin.json), used ONLY to
+// drive the local "Preview" button when there's no live Verifier to test
+// against. The linkIds, item types, and the two enableWhen conditions below
+// are confirmed against the real file (missed-why keyed off missed=once/more
+// with enableBehavior "any"; red-flags-note keyed off red-flags existing);
+// the exact answerOption codes/display text are this wallet's own
+// reconstruction, not a byte-for-byte copy, since the real file's text
+// couldn't be retrieved verbatim in this session. This matters only for the
+// Preview button: against a REAL Verifier, resolveFormState below uses
+// whatever Questionnaire that Verifier actually sends inline, and the
+// enableWhen/repeats engine (isItemEnabled, conditionMet, and the
+// choice/open-choice branch of renderQuestionnaireItem) evaluates that real
+// form directly -- it isn't hardcoded to this reconstruction.
+const SEMAGLUTIDE_CODE_SYSTEM = "https://smart-health-checkin.org/connectathon/CodeSystem/semaglutide-checkin";
+function sgCoding(code, display) {
+  return { system: SEMAGLUTIDE_CODE_SYSTEM, code, display };
+}
+const PHYSICIAN_QUESTIONNAIRE = {
+  resourceType: "Questionnaire",
+  url: "https://smart-health-checkin.org/connectathon/Questionnaire/semaglutide-4-week-checkin.json",
+  version: "1",
+  name: "SemaglutideFourWeekCheckin",
+  title: "Semaglutide 4-week check-in",
+  status: "draft",
+  subjectType: ["Patient"],
+  item: [
+    { linkId: "intro", type: "display", text: "A few questions about your first month on semaglutide. Takes about 3 minutes." },
+    { linkId: "doses-taken", type: "integer", text: "How many weekly shots have you taken so far?" },
+    {
+      linkId: "missed",
+      type: "choice",
+      text: "Have you missed or been very late with any shots?",
+      answerOption: [
+        { valueCoding: sgCoding("missed-no", "No") },
+        { valueCoding: sgCoding("missed-once", "Yes, once") },
+        { valueCoding: sgCoding("missed-more", "Yes, more than once") },
+      ],
+    },
+    {
+      linkId: "missed-why",
+      type: "text",
+      text: "What made it hard to take the shot on schedule?",
+      enableBehavior: "any",
+      enableWhen: [
+        { question: "missed", operator: "=", answerCoding: sgCoding("missed-once", "Yes, once") },
+        { question: "missed", operator: "=", answerCoding: sgCoding("missed-more", "Yes, more than once") },
+      ],
+    },
+    {
+      linkId: "pen-trouble",
+      type: "open-choice",
+      repeats: true,
+      text: "Any trouble with the pen or injection itself? Select all that apply.",
+      answerOption: [
+        { valueCoding: sgCoding("pen-site-reaction", "Redness or soreness at the injection site") },
+        { valueCoding: sgCoding("pen-dosing", "Trouble setting the right dose") },
+        { valueCoding: sgCoding("pen-device", "Pen jammed or wouldn't click") },
+      ],
+    },
+    {
+      linkId: "nausea",
+      type: "choice",
+      text: "How much nausea have you had in the past week?",
+      answerOption: [
+        { valueCoding: sgCoding("sev-none", "None") },
+        { valueCoding: sgCoding("sev-mild", "Mild") },
+        { valueCoding: sgCoding("sev-moderate", "Moderate") },
+        { valueCoding: sgCoding("sev-severe", "Severe") },
+      ],
+    },
+    {
+      linkId: "vomiting",
+      type: "choice",
+      text: "Any vomiting in the past week?",
+      answerOption: [
+        { valueCoding: sgCoding("vom-none", "None") },
+        { valueCoding: sgCoding("vom-once", "Once") },
+        { valueCoding: sgCoding("vom-repeated", "More than once") },
+      ],
+    },
+    {
+      linkId: "bowels",
+      type: "choice",
+      text: "Any changes in bowel habits?",
+      answerOption: [
+        { valueCoding: sgCoding("bowel-none", "No change") },
+        { valueCoding: sgCoding("bowel-constipation", "Constipation") },
+        { valueCoding: sgCoding("bowel-diarrhea", "Diarrhea") },
+        { valueCoding: sgCoding("bowel-both", "Both, at different times") },
+      ],
+    },
+    { linkId: "fluids", type: "boolean", text: "Have you been able to drink enough fluids?" },
+    {
+      linkId: "appetite",
+      type: "choice",
+      text: "Any change in appetite?",
+      answerOption: [
+        { valueCoding: sgCoding("appetite-same", "About the same") },
+        { valueCoding: sgCoding("appetite-less", "Less hungry") },
+        { valueCoding: sgCoding("appetite-much-less", "Much less hungry") },
+        { valueCoding: sgCoding("appetite-more", "More hungry") },
+      ],
+    },
+    { linkId: "low-sugar", type: "boolean", text: "Any shaky, sweaty, or confused spells, especially after eating less?" },
+    {
+      linkId: "red-flags",
+      type: "choice",
+      repeats: true,
+      text: "Any of these warning symptoms? Select all that apply.",
+      answerOption: [
+        { valueCoding: sgCoding("flag-abdominal-pain", "Severe, constant abdominal pain") },
+        { valueCoding: sgCoding("flag-vision", "Sudden vision changes") },
+        { valueCoding: sgCoding("flag-dehydration", "Signs of dehydration (dizziness, very dark urine)") },
+        { valueCoding: sgCoding("flag-allergic", "Swelling, hives, or trouble breathing") },
+        { valueCoding: sgCoding("flag-none", "None of these") },
+      ],
+    },
+    {
+      linkId: "red-flags-note",
+      type: "display",
+      text: "Please call the office today -- one of your answers needs a same-day check-in.",
+      enableWhen: [{ question: "red-flags", operator: "exists" }],
+    },
+    {
+      linkId: "next-dose",
+      type: "choice",
+      text: "How ready do you feel to move up to the next dose?",
+      answerOption: [
+        { valueCoding: sgCoding("ready-yes", "Ready") },
+        { valueCoding: sgCoding("ready-not-yet", "Not yet -- stay at this dose") },
+        { valueCoding: sgCoding("ready-unsure", "Not sure") },
+      ],
+    },
+    { linkId: "questions", type: "text", text: "Anything else you want to ask your care team before your visit?" },
+  ],
+};
+
 const SAMPLE_REQUEST = {
   type: "smart-health-checkin-request",
   version: "1",
@@ -824,6 +1267,27 @@ const SAMPLE_REQUEST = {
       accept: [FHIR_MEDIA_TYPE, "application/smart-health-card"],
     },
     {
+      id: "labs-vitals",
+      title: "Recent lab results and vitals",
+      summary: "Recent lab results and vital signs (narrowed-family: Observation only, via profilesFrom + resourceTypes).",
+      content: { kind: "selection.fhir", profilesFrom: [US_CORE_IG], resourceTypes: ["Observation"] },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
+      id: "uscdi",
+      title: "Everything in your US Core record",
+      summary: "Anything in your record that conforms to US Core -- any-us-core, and (given the synthetic history below) large-response too.",
+      content: { kind: "selection.fhir", profilesFrom: [US_CORE_IG] },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
+      id: "semaglutide",
+      title: "How your new medicine is going",
+      summary: "A short check-in about your first month on semaglutide -- physician-form (enableWhen + repeats).",
+      content: { kind: "form.fhir", questionnaireCanonical: PHYSICIAN_QUESTIONNAIRE.url + "|1", questionnaire: PHYSICIAN_QUESTIONNAIRE },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
       id: "phq2",
       title: "A couple of quick mood questions",
       required: true,
@@ -834,14 +1298,17 @@ const SAMPLE_REQUEST = {
 };
 
 function showPreview() {
-  const formState = { phq2: { questionnaire: PHQ2_QUESTIONNAIRE } };
+  const formState = {
+    phq2: { questionnaire: PHQ2_QUESTIONNAIRE },
+    semaglutide: { questionnaire: PHYSICIAN_QUESTIONNAIRE },
+  };
   renderConsentScreen({
     request: SAMPLE_REQUEST,
     origin: "(preview -- no real Verifier)",
     unsupportedItems: [],
     formState,
-    onSubmit: (decisions) => {
-      const response = buildResponse(SAMPLE_REQUEST, [], decisions, formState);
+    onSubmit: (decisions, combineShared) => {
+      const response = buildResponse(SAMPLE_REQUEST, [], decisions, formState, { combineShared });
       renderDone({ origin: "(preview)", response });
     },
     onDeclineAll: () => {
@@ -890,8 +1357,8 @@ const served = serveWebWallet({
         origin,
         unsupportedItems,
         formState,
-        onSubmit: (decisions) => {
-          const response = buildResponse(request, unsupportedItems, decisions, formState);
+        onSubmit: (decisions, combineShared) => {
+          const response = buildResponse(request, unsupportedItems, decisions, formState, { combineShared });
           renderDone({ origin, response });
           resolve({ response });
         },
