@@ -1,0 +1,1899 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>M5 Health Test Wallet</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #d9d6cf;
+    --text: #1d1b16;
+    --text-dim: #6b6558;
+    --accent: #1f5f4f;
+    --accent-contrast: #ffffff;
+    --warn-bg: #fdf3e3;
+    --warn-border: #e8c875;
+    --warn-text: #6b4c06;
+    --danger: #a3372a;
+    --ok-bg: #e9f3ec;
+    --ok-text: #1f5f4f;
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --surface: #1f2123;
+      --border: #34363a;
+      --text: #ece9e3;
+      --text-dim: #9b9690;
+      --accent: #5fbf9f;
+      --accent-contrast: #0c1a16;
+      --warn-bg: #34290f;
+      --warn-border: #7a5c17;
+      --warn-text: #e8c875;
+      --danger: #e2847a;
+      --ok-bg: #16281f;
+      --ok-text: #5fbf9f;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.45;
+    padding: 24px 16px 48px;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  p { margin: 0; }
+  .muted { color: var(--text-dim); font-size: 0.88rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--ok-bg);
+    color: var(--ok-text);
+    white-space: nowrap;
+  }
+  .pill.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .pill.off { background: var(--border); color: var(--text-dim); }
+  .origin-banner {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    color: var(--warn-text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 0.92rem;
+  }
+  .origin-banner strong { font-family: var(--mono); word-break: break-all; }
+  .item-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .item-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+  .item-title { font-weight: 600; }
+  .item-summary { color: var(--text-dim); font-size: 0.86rem; }
+  .toggle {
+    position: relative; width: 44px; height: 26px; flex: none;
+    border-radius: 999px; background: var(--border); border: none; cursor: pointer; padding: 0;
+  }
+  .toggle::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--surface); transition: transform 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .toggle[aria-checked="true"] { background: var(--accent); }
+  .toggle[aria-checked="true"]::after { transform: translateX(18px); }
+  .toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-block { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .q-item { display: flex; flex-direction: column; gap: 6px; }
+  .q-text { font-size: 0.92rem; }
+  .q-options { display: flex; flex-direction: column; gap: 6px; }
+  .q-option { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+  input[type="text"], input[type="number"], input[type="date"], textarea {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 9px; font: inherit; width: 100%;
+  }
+  button {
+    font: inherit; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); padding: 9px 16px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-contrast); border-color: transparent; font-weight: 600; }
+  button.danger-text { color: var(--danger); background: none; border: none; text-decoration: underline; padding: 4px 0; }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+  .bundle-note { font-size: 0.78rem; color: var(--text-dim); }
+  code.inline { font-family: var(--mono); font-size: 0.85em; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+  .footer-note { font-size: 0.78rem; color: var(--text-dim); text-align: center; padding-top: 12px; }
+  .log { font-family: var(--mono); font-size: 0.75rem; color: var(--text-dim); white-space: pre-wrap; }
+  .status-list { display: flex; flex-direction: column; gap: 8px; }
+  .status-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.9rem; }
+  .copy-row { display: flex; gap: 8px; align-items: center; }
+  .copy-row input { font-family: var(--mono); font-size: 0.82rem; flex: 1; min-width: 0; }
+  .tabs { display: flex; gap: 8px; }
+  .tab-btn { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font: inherit; font-weight: 600; cursor: pointer; color: var(--text-dim); }
+  .tab-btn.active { background: var(--accent); color: var(--accent-contrast); border-color: transparent; }
+  details > summary { cursor: pointer; font-size: 0.85rem; color: var(--text-dim); }
+  smart-checkin-picker { display: block; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap" id="app">
+    <p class="muted" id="loading-note">Loading the SMART Health Check-in client library…</p>
+  </div>
+
+<script type="module">
+// M5 Health Test Wallet
+//
+// A test tool for the "Kill the Clipboard" SMART Health Check-in connectathon
+// (https://smart-health-checkin.org/connectathon/), covering BOTH roles of
+// the postMessage-based web-wallet protocol, as two tabs on the home screen:
+//   - Wallet tab (default): this page as the WALLET, answering a request --
+//     serveWebWallet() below, driven by a real incoming request or the
+//     "Preview" button.
+//   - Verifier tab: this page as the VERIFIER/clinic/EHR side, building a
+//     request and sending it to a wallet (this page's own URL included --
+//     a quick way to run the full round trip in two tabs with nothing else
+//     involved) via the official <smart-checkin-picker> element.
+// Both sides use the official, unmodified client library -- this page does
+// none of the mdoc/CBOR/COSE/HPKE work itself.
+//
+// Served as a plain static file (web/public/test-wallet/), so it carries no
+// Content-Security-Policy restrictions and can load the library straight
+// from its own host.
+//
+// Scenario coverage (see https://smart-health-checkin.org/connectathon/ and
+// .../advanced.html):
+//   Minimum scenarios -- demographics / problems / medications: supported.
+//   any-us-core, decline-all, no-selector, unknown-selector: supported
+//     (generic profile-based matching + the library's own fallbacks).
+//   large-response, narrowed-family: supported -- see the synthetic
+//     vitals/labs generator below, which exists specifically to give the
+//     "everything in US Core" and "Observation-only" requests enough volume
+//     and the right profile tags to exercise both scenarios.
+//   form-by-reference, versioned-canonical: supported (resolveFormState
+//     below fetches a bare questionnaireCanonical; the canonical is echoed
+//     back verbatim including any |version suffix).
+//   physician-form (enableWhen + repeats/open-choice): supported -- see
+//     isItemEnabled/conditionMet and the choice/open-choice branch of
+//     renderQuestionnaireItem. This logic runs against whatever Questionnaire
+//     a real Verifier sends inline, so it isn't tied to the local PHYSICIAN_QUESTIONNAIRE
+//     reconstruction below (kept only for the no-Verifier "Preview" button --
+//     see the note where it's defined).
+//   shared-artifact: supported -- see the "combine shareable records" toggle
+//     on the consent screen and the pendingSelections merge in buildResponse.
+//     Defaults OFF so it never changes the response shape for the minimum
+//     scenarios; turn it on to test this one specifically.
+//   health-card, insurance-card: NOT implemented. Both need a real SMART
+//     Health Card signature (ES256 JWS + DEFLATE); the client library has
+//     no wallet-side signer, only a fake-signature test fixture.
+//   cross-device, in-person-handoff: not applicable to a web wallet (native
+//     Android wallet + phone Credential Manager only).
+//   write-back: not applicable to the wallet role (Verifier/EHR-side only).
+//   prefilled-form: supported, best effort -- see applyPrefill. Matches
+//     question text / linkId / option labels against the synthetic record
+//     (the forms carry no LOINC codes), tags prefilled answers, keeps them
+//     editable, and leaves anything unrecognized blank.
+import {
+  serveWebWallet,
+  declineAll,
+  selectEntries,
+  selects,
+} from "https://smart-health-checkin.org/client/lib/0.4.4/wallet.js";
+// Verifier (clinic/EHR) side -- used only by the "Verifier" tab below, which
+// lets this same page play the other role: sending a request to a wallet
+// (this one, or another team's) instead of answering one.
+import { wallets } from "https://smart-health-checkin.org/client/lib/0.4.4/checkin.js";
+import "https://smart-health-checkin.org/client/lib/0.4.4/ui.js"; // registers <smart-checkin-picker>
+
+const FHIR_VERSION = "4.0.1";
+const FHIR_MEDIA_TYPE = "application/fhir+json";
+
+// The connectathon's real wallet registry, used by the Verifier tab so it
+// can send a request to any already-registered wallet (SMART's own
+// reference wallet, other teams' wallets) in addition to a one-off URL.
+const REGISTRY_URL = "https://smart-health-checkin.org/connectathon/wallets.json";
+const CUSTOM_WALLETS_KEY = "m5-verifier-custom-wallets";
+function loadCustomWallets() {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_WALLETS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function saveCustomWallets(list) {
+  try {
+    localStorage.setItem(CUSTOM_WALLETS_KEY, JSON.stringify(list));
+  } catch {
+    // localStorage unavailable (private window, etc.) -- custom wallets just
+    // won't persist across reloads; nothing else depends on this.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Synthetic patient record (ground rule: synthetic data only). Jordan Rivera
+// is M5 Health's own long-standing sample patient (web/src/data/sample_fhir_bundle.json),
+// reused here with the meta.profile tags the connectathon's selectors key off of.
+// ---------------------------------------------------------------------------
+
+const PATIENT_URL = "urn:uuid:m5-test-patient";
+const PRESCRIBER_URL = "urn:uuid:m5-test-prescriber";
+const PAYER_URL = "urn:uuid:m5-test-payer";
+
+const US_CORE_IG = "http://hl7.org/fhir/us/core";
+const US_CORE = US_CORE_IG + "/StructureDefinition/";
+const C4DIC_COVERAGE = "http://hl7.org/fhir/us/insurance-card/StructureDefinition/C4DIC-Coverage";
+
+const RECORD_ENTRIES = [
+  {
+    fullUrl: PATIENT_URL,
+    resource: {
+      resourceType: "Patient",
+      id: "m5-test-patient",
+      meta: { profile: [US_CORE + "us-core-patient"] },
+      name: [{ given: ["Jordan"], family: "Rivera" }],
+      gender: "female",
+      birthDate: "1985-04-12",
+      address: [{ line: ["48 Willow St"], city: "Ann Arbor", state: "MI", postalCode: "48104" }],
+      telecom: [{ system: "phone", value: "555-0142" }],
+      communication: [{ language: { coding: [{ system: "urn:ietf:bcp:47", code: "en", display: "English" }] } }],
+    },
+  },
+  {
+    fullUrl: PRESCRIBER_URL,
+    resource: {
+      resourceType: "Practitioner",
+      id: "m5-test-prescriber",
+      name: [{ given: ["Dana"], family: "Okafor", prefix: ["Dr."] }],
+    },
+  },
+  {
+    fullUrl: PAYER_URL,
+    resource: {
+      resourceType: "Organization",
+      id: "m5-test-payer",
+      name: "Health Management Associates",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-cond-htn",
+    resource: {
+      resourceType: "Condition",
+      id: "m5-cond-htn",
+      meta: { profile: [US_CORE + "us-core-condition-problems-health-concerns"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-clinical", code: "active" }] },
+      verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-ver-status", code: "confirmed" }] },
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-category", code: "problem-list-item" }] }],
+      code: { text: "Essential hypertension", coding: [{ system: "http://snomed.info/sct", code: "59621000", display: "Essential hypertension (disorder)" }] },
+      subject: { reference: PATIENT_URL },
+      onsetDateTime: "2020-03-01",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-cond-t2dm",
+    resource: {
+      resourceType: "Condition",
+      id: "m5-cond-t2dm",
+      meta: { profile: [US_CORE + "us-core-condition-problems-health-concerns"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-clinical", code: "active" }] },
+      verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-ver-status", code: "confirmed" }] },
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-category", code: "problem-list-item" }] }],
+      code: { text: "Type 2 diabetes mellitus", coding: [{ system: "http://snomed.info/sct", code: "44054006", display: "Diabetes mellitus type 2 (disorder)" }] },
+      subject: { reference: PATIENT_URL },
+      onsetDateTime: "2019-11-14",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-allergy-pcn",
+    resource: {
+      resourceType: "AllergyIntolerance",
+      id: "m5-allergy-pcn",
+      meta: { profile: [US_CORE + "us-core-allergyintolerance"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: "active" }] },
+      criticality: "low",
+      code: { text: "Penicillin", coding: [{ system: "http://snomed.info/sct", code: "764146007", display: "Penicillin (substance)" }] },
+      patient: { reference: PATIENT_URL },
+      reaction: [{ manifestation: [{ text: "Rash", coding: [{ system: "http://snomed.info/sct", code: "271807003", display: "Rash" }] }] }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-allergy-peanut",
+    resource: {
+      resourceType: "AllergyIntolerance",
+      id: "m5-allergy-peanut",
+      meta: { profile: [US_CORE + "us-core-allergyintolerance"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: "active" }] },
+      criticality: "high",
+      code: { text: "Peanut", coding: [{ system: "http://snomed.info/sct", code: "91935009", display: "Allergy to peanut (disorder)" }] },
+      patient: { reference: PATIENT_URL },
+      reaction: [{ manifestation: [{ text: "Anaphylaxis", coding: [{ system: "http://snomed.info/sct", code: "39579001", display: "Anaphylaxis" }] }] }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-med-lisinopril",
+    resource: {
+      resourceType: "MedicationRequest",
+      id: "m5-med-lisinopril",
+      meta: { profile: [US_CORE + "us-core-medicationrequest"] },
+      status: "active",
+      intent: "order",
+      subject: { reference: PATIENT_URL },
+      requester: { reference: PRESCRIBER_URL },
+      medicationCodeableConcept: { text: "Lisinopril 10mg", coding: [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: "314076", display: "lisinopril 10 MG Oral Tablet" }] },
+      dosageInstruction: [{ text: "10 mg by mouth once daily", timing: { code: { text: "Once daily" } }, route: { text: "Oral" } }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-med-atorvastatin",
+    resource: {
+      resourceType: "MedicationRequest",
+      id: "m5-med-atorvastatin",
+      meta: { profile: [US_CORE + "us-core-medicationrequest"] },
+      status: "active",
+      intent: "order",
+      subject: { reference: PATIENT_URL },
+      requester: { reference: PRESCRIBER_URL },
+      medicationCodeableConcept: { text: "Atorvastatin 40mg", coding: [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: "259255", display: "atorvastatin 40 MG Oral Tablet" }] },
+      dosageInstruction: [{ text: "40 mg by mouth nightly", route: { text: "Oral" } }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-med-metformin",
+    resource: {
+      resourceType: "MedicationRequest",
+      id: "m5-med-metformin",
+      meta: { profile: [US_CORE + "us-core-medicationrequest"] },
+      status: "active",
+      intent: "order",
+      subject: { reference: PATIENT_URL },
+      requester: { reference: PRESCRIBER_URL },
+      medicationCodeableConcept: { text: "Metformin 500mg", coding: [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: "861007", display: "metformin hydrochloride 500 MG Oral Tablet" }] },
+      dosageInstruction: [{ text: "500 mg by mouth twice daily with meals", route: { text: "Oral" } }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-imm-flu",
+    resource: {
+      resourceType: "Immunization",
+      id: "m5-imm-flu",
+      meta: { profile: [US_CORE + "us-core-immunization"] },
+      status: "completed",
+      patient: { reference: PATIENT_URL },
+      vaccineCode: { text: "Influenza vaccine", coding: [{ system: "http://hl7.org/fhir/sid/cvx", code: "88", display: "influenza virus vaccine, unspecified formulation" }] },
+      occurrenceDateTime: "2025-10-03",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-imm-covid",
+    resource: {
+      resourceType: "Immunization",
+      id: "m5-imm-covid",
+      meta: { profile: [US_CORE + "us-core-immunization"] },
+      status: "completed",
+      patient: { reference: PATIENT_URL },
+      vaccineCode: { text: "COVID-19 vaccine", coding: [{ system: "http://hl7.org/fhir/sid/cvx", code: "213", display: "SARS-COV-2 (COVID-19) vaccine, unspecified" }] },
+      occurrenceDateTime: "2025-10-03",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-imm-tdap",
+    resource: {
+      resourceType: "Immunization",
+      id: "m5-imm-tdap",
+      meta: { profile: [US_CORE + "us-core-immunization"] },
+      status: "completed",
+      patient: { reference: PATIENT_URL },
+      vaccineCode: { text: "Tdap vaccine", coding: [{ system: "http://hl7.org/fhir/sid/cvx", code: "115", display: "Tdap" }] },
+      occurrenceDateTime: "2021-05-18",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-coverage",
+    resource: {
+      resourceType: "Coverage",
+      id: "m5-coverage",
+      meta: { profile: [US_CORE + "us-core-coverage", C4DIC_COVERAGE] },
+      status: "active",
+      type: { text: "PPO", coding: [{ system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "PPO" }] },
+      subscriberId: "EHP123456789",
+      beneficiary: { reference: PATIENT_URL },
+      relationship: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/subscriber-relationship", code: "self" }] },
+      payor: [{ reference: PAYER_URL }],
+      class: [
+        { type: { coding: [{ code: "group" }] }, value: "G-48213", name: "Riverside Manufacturing" },
+        { type: { coding: [{ code: "plan" }] }, value: "SB-HSA-PPO", name: "Simply Blue HSA PPO" },
+      ],
+      period: { start: "2026-01-01" },
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Bulk synthetic vitals/labs history -- generated, not hand-written.
+//
+// Exists specifically for two advanced scenarios:
+//   - narrowed-family: a request that asks for Observations only (profilesFrom
+//     US Core + resourceTypes: ["Observation"], see the real
+//     connectathon/requests/observations.json). Needs *some* profiled
+//     Observation data to match against at all -- the base record above had
+//     none.
+//   - large-response / any-us-core at scale: the same "everything in US Core"
+//     request (connectathon/requests/uscdi.json) used for both any-us-core
+//     and large-response. To actually exercise the "large" case the response
+//     needs to clear roughly 1MB; a handful of hand-written resources never
+//     will, so this generates several years of daily vitals plus weekly labs
+//     instead. Target is comfortably over 1MB with margin, not exactly 1MB.
+// ---------------------------------------------------------------------------
+
+function daysAgoISO(n) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+function generateVitalsHistory(years) {
+  const days = years * 365;
+  const entries = [];
+  for (let i = 0; i < days; i++) {
+    const date = daysAgoISO(i);
+    const systolic = 118 + Math.round(6 * Math.sin(i / 17)) + (i % 5);
+    const diastolic = 76 + Math.round(4 * Math.sin(i / 23));
+    const hr = 68 + (i % 11);
+    entries.push({
+      fullUrl: `urn:uuid:m5-vitals-${i}`,
+      resource: {
+        resourceType: "Observation",
+        id: `m5-vitals-${i}`,
+        meta: { profile: [US_CORE + "us-core-vital-signs", US_CORE + "us-core-blood-pressure"] },
+        status: "final",
+        category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
+        code: { coding: [{ system: "http://loinc.org", code: "85354-9", display: "Blood pressure panel with all children optional" }] },
+        subject: { reference: PATIENT_URL },
+        effectiveDateTime: date,
+        component: [
+          { code: { coding: [{ system: "http://loinc.org", code: "8480-6", display: "Systolic blood pressure" }] }, valueQuantity: { value: systolic, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" } },
+          { code: { coding: [{ system: "http://loinc.org", code: "8462-4", display: "Diastolic blood pressure" }] }, valueQuantity: { value: diastolic, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" } },
+          { code: { coding: [{ system: "http://loinc.org", code: "8867-4", display: "Heart rate" }] }, valueQuantity: { value: hr, unit: "/min", system: "http://unitsofmeasure.org", code: "/min" } },
+        ],
+      },
+    });
+    entries.push({
+      fullUrl: `urn:uuid:m5-weight-${i}`,
+      resource: {
+        resourceType: "Observation",
+        id: `m5-weight-${i}`,
+        meta: { profile: [US_CORE + "us-core-vital-signs"] },
+        status: "final",
+        category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
+        code: { coding: [{ system: "http://loinc.org", code: "29463-7", display: "Body weight" }] },
+        subject: { reference: PATIENT_URL },
+        effectiveDateTime: date,
+        valueQuantity: { value: 172 + Math.round(3 * Math.sin(i / 40)), unit: "lbs", system: "http://unitsofmeasure.org", code: "[lb_av]" },
+      },
+    });
+  }
+  return entries;
+}
+
+function generateLabHistory(years) {
+  const weeks = years * 52;
+  const entries = [];
+  for (let i = 0; i < weeks; i++) {
+    const date = daysAgoISO(i * 7);
+    const a1c = Math.round((6.8 + 0.4 * Math.sin(i / 10)) * 10) / 10;
+    entries.push({
+      fullUrl: `urn:uuid:m5-lab-${i}`,
+      resource: {
+        resourceType: "Observation",
+        id: `m5-lab-${i}`,
+        meta: { profile: [US_CORE + "us-core-observation-lab"] },
+        status: "final",
+        category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "laboratory" }] }],
+        code: { coding: [{ system: "http://loinc.org", code: "4548-4", display: "Hemoglobin A1c/Hemoglobin.total in Blood" }] },
+        subject: { reference: PATIENT_URL },
+        effectiveDateTime: date,
+        valueQuantity: { value: a1c, unit: "%", system: "http://unitsofmeasure.org", code: "%" },
+      },
+    });
+  }
+  return entries;
+}
+
+const BULK_HISTORY_ENTRIES = [...generateVitalsHistory(5), ...generateLabHistory(10)];
+const ALL_ENTRIES = [...RECORD_ENTRIES, ...BULK_HISTORY_ENTRIES];
+const PATIENT_RESOURCE = RECORD_ENTRIES.find((e) => e.fullUrl === PATIENT_URL).resource;
+
+// ---------------------------------------------------------------------------
+// Matching + artifact building
+// ---------------------------------------------------------------------------
+
+// `selectEntries`'s `exclude` keeps the Patient out of every OTHER item's
+// bundle, pulled in only by reference, so it isn't duplicated across every
+// artifact. But a Demographics-style item that selects the Patient directly
+// must not exclude the very thing it's asking for.
+function excludeFor(item) {
+  if (item.content?.kind === "selection.fhir" && selects(item.content, PATIENT_RESOURCE)) return [];
+  return [PATIENT_URL];
+}
+
+function buildSelectionArtifact(item, entries) {
+  return {
+    id: `artifact-${item.id}`,
+    mediaType: FHIR_MEDIA_TYPE,
+    fhirVersion: FHIR_VERSION,
+    fulfills: [item.id],
+    value: {
+      resourceType: "Bundle",
+      type: "collection",
+      entry: entries.map((e) => ({ fullUrl: e.fullUrl, resource: e.resource })),
+    },
+  };
+}
+
+// Approximate serialized size of a set of matched entries, for display only
+// (not used in any matching decision). Good enough to show "this is the big
+// one" without pretending to be the exact byte count the wire format sends.
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+function entriesSize(entries) {
+  return JSON.stringify(entries.map((e) => e.resource)).length;
+}
+
+// ---------------------------------------------------------------------------
+// Questionnaire support: group, display, boolean, string, text, integer,
+// decimal, date, choice, open-choice, with enableWhen (any/all behavior,
+// operators exists/=/!=) and repeats (multi-select + free text for
+// open-choice). Generic -- this isn't tied to the PHQ-2 or semaglutide forms,
+// it answers whatever Questionnaire a request actually supplies.
+// ---------------------------------------------------------------------------
+
+function flattenQuestionnaireItems(items, out = []) {
+  for (const item of items ?? []) {
+    out.push(item);
+    if (item.item?.length) flattenQuestionnaireItems(item.item, out);
+  }
+  return out;
+}
+
+function codingKey(coding) {
+  return coding ? `${coding.system ?? ""}|${coding.code ?? ""}` : "";
+}
+
+function conditionMet(cond, values) {
+  const raw = values[cond.question];
+  const hasValue = Array.isArray(raw)
+    ? raw.length > 0
+    : raw !== undefined && raw !== "" && raw !== null && raw !== false;
+  if (cond.operator === "exists") {
+    const want = cond.answerBoolean !== false; // default: enabled when the answer exists
+    return hasValue === want;
+  }
+  const target = cond.answerCoding ? codingKey(cond.answerCoding)
+    : cond.answerBoolean !== undefined ? cond.answerBoolean
+    : cond.answerString !== undefined ? cond.answerString
+    : cond.answerInteger !== undefined ? cond.answerInteger
+    : cond.answerDecimal;
+  const actual = Array.isArray(raw) ? raw : [raw];
+  const matches = actual.some((v) => v === target);
+  return cond.operator === "!=" ? !matches : matches; // "=" and anything unrecognized fall back to equality
+}
+
+function isItemEnabled(qItem, values) {
+  if (!qItem.enableWhen?.length) return true;
+  const results = qItem.enableWhen.map((c) => conditionMet(c, values));
+  return qItem.enableBehavior === "all" ? results.every(Boolean) : results.some(Boolean);
+}
+
+function qrItemFor(qItem, values) {
+  if (!isItemEnabled(qItem, values)) return null;
+  const children = (qItem.item ?? []).map((child) => qrItemFor(child, values)).filter(Boolean);
+  let answer;
+  if (qItem.type === "choice" || qItem.type === "open-choice") {
+    const raw = values[qItem.linkId];
+    const keys = qItem.repeats ? (Array.isArray(raw) ? raw : []) : raw ? [raw] : [];
+    const built = keys.map((key) => {
+      const opt = (qItem.answerOption ?? []).find((o) => codingKey(o.valueCoding) === key);
+      return opt ? { valueCoding: opt.valueCoding } : { valueString: key };
+    });
+    const other = values[`${qItem.linkId}__other`];
+    if (other) built.push({ valueString: other });
+    if (built.length) answer = built;
+  } else {
+    const raw = values[qItem.linkId];
+    if (raw !== undefined && raw !== "" && raw !== null && raw !== false) {
+      switch (qItem.type) {
+        case "boolean":
+          answer = [{ valueBoolean: true }];
+          break;
+        case "integer":
+          answer = [{ valueInteger: Number(raw) }];
+          break;
+        case "decimal":
+          answer = [{ valueDecimal: Number(raw) }];
+          break;
+        case "date":
+          answer = [{ valueDate: raw }];
+          break;
+        default:
+          answer = [{ valueString: String(raw) }];
+      }
+    }
+  }
+  if (!answer && children.length === 0) return null; // omit unanswered/disabled leaf items
+  return {
+    linkId: qItem.linkId,
+    text: qItem.text,
+    ...(answer ? { answer } : {}),
+    ...(children.length ? { item: children } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Prefill (the "prefilled-form" scenario): before the patient sees a form,
+// answers are filled in from this wallet's synthetic record wherever a
+// question is recognizably about something the record holds. Nothing is
+// guessed: unrecognized questions stay blank, prefilled ones carry a visible
+// tag, and every answer stays editable. Matching is by question text, linkId
+// and option labels, because the connectathon forms carry no LOINC codes to
+// key a prefill on. The patterns below must be kept in step with RECORD_ENTRIES.
+// ---------------------------------------------------------------------------
+
+const recordNames = (type, pick) =>
+  RECORD_ENTRIES.filter((e) => e.resource.resourceType === type).map((e) => pick(e.resource));
+const capitalize = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+const PREFILL_FACTS = {
+  firstName: PATIENT_RESOURCE.name[0].given[0],
+  lastName: PATIENT_RESOURCE.name[0].family,
+  fullName: `${PATIENT_RESOURCE.name[0].given[0]} ${PATIENT_RESOURCE.name[0].family}`,
+  dob: PATIENT_RESOURCE.birthDate,
+  sex: capitalize(PATIENT_RESOURCE.gender),
+  phone: PATIENT_RESOURCE.telecom.find((t) => t.system === "phone")?.value,
+  address: [
+    PATIENT_RESOURCE.address[0].line.join(" "),
+    PATIENT_RESOURCE.address[0].city,
+    PATIENT_RESOURCE.address[0].state,
+    PATIENT_RESOURCE.address[0].postalCode,
+  ].join(", "),
+  conditions: recordNames("Condition", (r) => r.code.text),
+  allergies: recordNames("AllergyIntolerance", (r) => r.code.text),
+  medications: recordNames("MedicationRequest", (r) => r.medicationCodeableConcept.text),
+};
+
+const PREFILL_LIST_TOPICS = ["conditions", "allergies", "medications"];
+const PREFILL_PATTERNS = {
+  conditions: [/hypertension|high blood pressure/i, /diabet/i],
+  allergies: [/penicillin/i, /peanut/i],
+  medications: [/lisinopril/i, /atorvastatin|lipitor/i, /metformin/i],
+  sex: [/\bfemale\b/i, /^f$/i],
+};
+// Order matters: specific identity topics before the generic "name" one.
+const PREFILL_TOPICS = [
+  ["firstName", /first name|given name|first_name|firstname/i],
+  ["lastName", /last name|family name|surname|last_name|lastname/i],
+  ["dob", /birth|\bdob\b/i],
+  ["sex", /\bsex\b|\bgender\b/i],
+  ["phone", /phone|mobile|telephone/i],
+  ["address", /address/i],
+  ["fullName", /\bname\b/i],
+  ["allergies", /allerg/i],
+  ["medications", /medicat|prescription|\bdrugs?\b/i],
+  ["conditions", /condition|diagnos|medical history|health problem|chronic|history of/i],
+];
+// A question about someone or something else (a guardian's phone, the
+// patient's doctor, an email address) must not get the patient's own value.
+const PREFILL_NOT_THE_PATIENT = /emergency|guardian|parent|spouse|partner|subscriber|employer|physician|doctor|provider|pharmac|referr|e-?mail/i;
+
+function prefillHaystack(qItem) {
+  return `${qItem.text ?? ""} ${qItem.linkId ?? ""}`;
+}
+
+function prefillTopic(qItem) {
+  const hay = prefillHaystack(qItem);
+  if (PREFILL_NOT_THE_PATIENT.test(hay)) return null;
+  return PREFILL_TOPICS.find(([, re]) => re.test(hay))?.[0] ?? null;
+}
+
+function optionLabel(option) {
+  return option.valueCoding?.display ?? option.valueString ?? option.valueCoding?.code ?? "";
+}
+
+// Returns undefined (leave blank) or { value } / { keys, other } in the shape
+// the form's `values` map uses.
+function prefillAnswer(qItem) {
+  const topic = prefillTopic(qItem);
+  switch (qItem.type) {
+    case "string":
+    case "text": {
+      if (!topic) return undefined;
+      const fact = PREFILL_FACTS[topic];
+      const value = Array.isArray(fact) ? fact.join("; ") : fact;
+      return value ? { value } : undefined;
+    }
+    case "date":
+      return topic === "dob" ? { value: PREFILL_FACTS.dob } : undefined;
+    case "boolean": {
+      const hay = prefillHaystack(qItem);
+      const namesAKnownFact = PREFILL_LIST_TOPICS.some((t) => PREFILL_PATTERNS[t].some((re) => re.test(hay)));
+      const asksAboutAny = PREFILL_LIST_TOPICS.includes(topic) && /\bany\b/i.test(hay) && PREFILL_FACTS[topic].length > 0;
+      return namesAKnownFact || asksAboutAny ? { value: true } : undefined;
+    }
+    case "choice":
+    case "open-choice": {
+      const patterns = topic === "sex"
+        ? PREFILL_PATTERNS.sex
+        : PREFILL_LIST_TOPICS.includes(topic)
+          ? PREFILL_PATTERNS[topic]
+          : topic
+            ? []
+            : PREFILL_LIST_TOPICS.flatMap((t) => PREFILL_PATTERNS[t]);
+      const keys = (qItem.answerOption ?? [])
+        .filter((o) => o.valueCoding && patterns.some((re) => re.test(optionLabel(o))))
+        .map((o) => codingKey(o.valueCoding));
+      const other = !keys.length && qItem.type === "open-choice" && PREFILL_LIST_TOPICS.includes(topic)
+        ? PREFILL_FACTS[topic].join("; ")
+        : "";
+      if (!keys.length && !other) return undefined;
+      return { keys: qItem.repeats ? keys : keys.slice(0, 1), other };
+    }
+    default:
+      return undefined;
+  }
+}
+
+// Fills `values` in place and returns the set of linkIds that were prefilled.
+function applyPrefill(questionnaire, values) {
+  const prefilled = new Set();
+  for (const qItem of flattenQuestionnaireItems(questionnaire.item)) {
+    if (qItem.type === "group" || qItem.type === "display") continue;
+    const answer = prefillAnswer(qItem);
+    if (!answer) continue;
+    if ("keys" in answer) {
+      if (qItem.repeats) values[qItem.linkId] = answer.keys;
+      else if (answer.keys.length) values[qItem.linkId] = answer.keys[0];
+      if (answer.other) values[`${qItem.linkId}__other`] = answer.other;
+    } else {
+      values[qItem.linkId] = answer.value;
+    }
+    prefilled.add(qItem.linkId);
+  }
+  return prefilled;
+}
+
+function buildQuestionnaireResponse(item, questionnaire, values) {
+  const canonical = item.content.questionnaireCanonical ?? questionnaire?.url;
+  const qrItems = (questionnaire.item ?? []).map((qi) => qrItemFor(qi, values)).filter(Boolean);
+  return {
+    resourceType: "QuestionnaireResponse",
+    status: "completed",
+    questionnaire: canonical,
+    subject: { reference: PATIENT_URL },
+    authored: new Date().toISOString(),
+    item: qrItems,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Request/response assembly
+// ---------------------------------------------------------------------------
+
+// `unsupportedItems` entries aren't fully documented; this reads whichever
+// shape shows up (a bare id string, or an object carrying `item`/`id`/`itemId`).
+function unsupportedIdOf(entry) {
+  if (typeof entry === "string") return entry;
+  return entry?.item ?? entry?.id ?? entry?.itemId;
+}
+
+// `options.combineShared`: when true, every selection.fhir item that matched
+// at least one record is pooled and answered with ONE shared Bundle artifact
+// (fulfills listing every item it satisfies, entries de-duplicated by
+// fullUrl) instead of one artifact per item. Defaults to false so the
+// minimum-scenario response shape never changes unless this is deliberately
+// turned on -- see the "shared-artifact" scenario.
+function buildResponse(request, unsupportedItems, decisions, formState, options = {}) {
+  const combineShared = !!options.combineShared;
+  const unsupportedIds = new Set((unsupportedItems ?? []).map(unsupportedIdOf).filter(Boolean));
+  const requestStatus = [];
+  const artifacts = [];
+  const pendingSelections = [];
+
+  for (const item of request.items) {
+    if (unsupportedIds.has(item.id)) {
+      requestStatus.push({ item: item.id, status: "unsupported" });
+      continue;
+    }
+
+    const decision = decisions[item.id];
+    if (!decision || decision.share === false) {
+      requestStatus.push({ item: item.id, status: "declined" });
+      continue;
+    }
+
+    const accept = item.accept ?? [];
+    if (!accept.includes(FHIR_MEDIA_TYPE)) {
+      requestStatus.push({ item: item.id, status: "unsupported", message: "This wallet only produces application/fhir+json for this item." });
+      continue;
+    }
+
+    if (item.content?.kind === "selection.fhir") {
+      const entries = selectEntries(item.content, ALL_ENTRIES, { exclude: excludeFor(item) });
+      if (entries.length === 0) {
+        requestStatus.push({ item: item.id, status: "unavailable" });
+      } else if (combineShared) {
+        pendingSelections.push({ item, entries });
+      } else {
+        artifacts.push(buildSelectionArtifact(item, entries));
+        requestStatus.push({ item: item.id, status: "fulfilled" });
+      }
+      continue;
+    }
+
+    if (item.content?.kind === "form.fhir") {
+      const form = formState[item.id];
+      if (!form?.questionnaire) {
+        requestStatus.push({ item: item.id, status: "unsupported", message: "Could not resolve this form." });
+        continue;
+      }
+      const qr = buildQuestionnaireResponse(item, form.questionnaire, decision.answers ?? {});
+      if (!qr.item.length) {
+        requestStatus.push({ item: item.id, status: "unavailable" });
+        continue;
+      }
+      artifacts.push({
+        id: `artifact-${item.id}`,
+        mediaType: FHIR_MEDIA_TYPE,
+        fhirVersion: FHIR_VERSION,
+        fulfills: [item.id],
+        value: qr,
+      });
+      requestStatus.push({ item: item.id, status: "fulfilled" });
+      continue;
+    }
+
+    // Unknown content kind the library didn't already flag.
+    requestStatus.push({ item: item.id, status: "unsupported" });
+  }
+
+  if (pendingSelections.length === 1) {
+    const { item, entries } = pendingSelections[0];
+    artifacts.push(buildSelectionArtifact(item, entries));
+    requestStatus.push({ item: item.id, status: "fulfilled" });
+  } else if (pendingSelections.length > 1) {
+    const merged = new Map();
+    for (const { entries } of pendingSelections) {
+      for (const e of entries) merged.set(e.fullUrl, e);
+    }
+    artifacts.push({
+      id: `artifact-shared-${pendingSelections.map((p) => p.item.id).join("-")}`,
+      mediaType: FHIR_MEDIA_TYPE,
+      fhirVersion: FHIR_VERSION,
+      fulfills: pendingSelections.map((p) => p.item.id),
+      value: {
+        resourceType: "Bundle",
+        type: "collection",
+        entry: [...merged.values()].map((e) => ({ fullUrl: e.fullUrl, resource: e.resource })),
+      },
+    });
+    for (const { item } of pendingSelections) requestStatus.push({ item: item.id, status: "fulfilled" });
+  }
+
+  return {
+    type: "smart-health-checkin-response",
+    version: "1",
+    requestId: request.id,
+    artifacts,
+    requestStatus,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+
+const app = document.getElementById("app");
+
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "html") node.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null) node.setAttribute(k, v);
+  }
+  for (const child of [].concat(children)) {
+    if (child == null) continue;
+    node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+  }
+  return node;
+}
+
+function statusPill(text, kind) {
+  return el("span", { class: `pill${kind ? ` ${kind}` : ""}` }, text);
+}
+
+// Tracks every rendered Questionnaire item by linkId so enableWhen can
+// re-evaluate visibility on every change, anywhere in the form.
+function makeVisibilityRefresh(registry, values) {
+  return function refresh() {
+    for (const { wrapper, qItem } of registry.values()) {
+      if (qItem.enableWhen?.length) wrapper.hidden = !isItemEnabled(qItem, values);
+    }
+  };
+}
+
+// Renders one Questionnaire item (recursively for groups) into `container`,
+// wiring plain form controls that write into `values` by linkId. `ctx`
+// (optional) carries { registry, refresh } for enableWhen support.
+function renderQuestionnaireItem(qItem, values, container, ctx) {
+  if (qItem.type === "display") {
+    const node = el("p", { class: "q-text" }, qItem.text);
+    container.appendChild(node);
+    ctx?.registry.set(qItem.linkId, { wrapper: node, qItem });
+    return;
+  }
+  const wrap = el("div", { class: "q-item" });
+  if (qItem.text) wrap.appendChild(el("div", { class: "q-text" }, qItem.text));
+  const notify = () => ctx?.refresh();
+
+  if (qItem.type === "group") {
+    for (const child of qItem.item ?? []) renderQuestionnaireItem(child, values, wrap, ctx);
+  } else if (qItem.type === "boolean") {
+    const input = el("input", {
+      type: "checkbox",
+      id: `q-${qItem.linkId}`,
+      checked: values[qItem.linkId] === true ? "" : undefined,
+      onchange: (e) => {
+        values[qItem.linkId] = e.target.checked;
+        notify();
+      },
+    });
+    wrap.appendChild(el("label", { for: `q-${qItem.linkId}` }, [input, " Yes"]));
+  } else if (qItem.type === "choice" || qItem.type === "open-choice") {
+    const isRepeating = !!qItem.repeats;
+    if (isRepeating && !Array.isArray(values[qItem.linkId])) values[qItem.linkId] = [];
+    const options = el("div", { class: "q-options" });
+    for (const opt of qItem.answerOption ?? []) {
+      const key = codingKey(opt.valueCoding);
+      const id = `q-${qItem.linkId}-${key}`;
+      const selected = isRepeating ? values[qItem.linkId].includes(key) : values[qItem.linkId] === key;
+      const input = el("input", {
+        type: isRepeating ? "checkbox" : "radio",
+        ...(isRepeating ? {} : { name: `q-${qItem.linkId}` }),
+        id,
+        checked: selected ? "" : undefined,
+        onchange: (e) => {
+          if (isRepeating) {
+            const arr = values[qItem.linkId];
+            const idx = arr.indexOf(key);
+            if (e.target.checked && idx === -1) arr.push(key);
+            else if (!e.target.checked && idx !== -1) arr.splice(idx, 1);
+          } else {
+            values[qItem.linkId] = key;
+          }
+          notify();
+        },
+      });
+      options.appendChild(el("label", { class: "q-option", for: id }, [input, opt.valueCoding?.display ?? opt.valueCoding?.code ?? "(option)"]));
+    }
+    if (qItem.type === "open-choice") {
+      const otherId = `q-${qItem.linkId}-other`;
+      const otherInput = el("input", {
+        type: "text",
+        id: otherId,
+        placeholder: "Something else…",
+        value: values[`${qItem.linkId}__other`],
+        oninput: (e) => {
+          values[`${qItem.linkId}__other`] = e.target.value;
+          notify();
+        },
+      });
+      options.appendChild(el("label", { class: "q-option", for: otherId }, [otherInput, " Something else"]));
+    }
+    wrap.appendChild(options);
+  } else if (qItem.type === "integer" || qItem.type === "decimal") {
+    wrap.appendChild(el("input", {
+      type: "number",
+      step: qItem.type === "decimal" ? "any" : "1",
+      value: values[qItem.linkId],
+      oninput: (e) => {
+        values[qItem.linkId] = e.target.value;
+        notify();
+      },
+    }));
+  } else if (qItem.type === "date") {
+    wrap.appendChild(el("input", {
+      type: "date",
+      value: values[qItem.linkId],
+      oninput: (e) => {
+        values[qItem.linkId] = e.target.value;
+        notify();
+      },
+    }));
+  } else {
+    // string, text, and anything else we don't specifically handle
+    wrap.appendChild(el("input", {
+      type: "text",
+      value: values[qItem.linkId],
+      oninput: (e) => {
+        values[qItem.linkId] = e.target.value;
+        notify();
+      },
+    }));
+  }
+  if (ctx?.prefilled?.has(qItem.linkId)) {
+    wrap.appendChild(el("span", { class: "pill", style: "align-self:flex-start" }, "Prefilled from your records"));
+  }
+  container.appendChild(wrap);
+  ctx?.registry.set(qItem.linkId, { wrapper: wrap, qItem });
+}
+
+function itemCard({ item, unsupported, decisions, formState, onToggle }) {
+  const card = el("div", { class: "card" });
+  const row = el("div", { class: "item-row" });
+  const meta = el("div", { class: "item-meta" }, [
+    el("div", { class: "item-title" }, item.title ?? item.id),
+    item.summary ? el("div", { class: "item-summary" }, item.summary) : null,
+    item.required ? statusPill("Clinic marked this needed -- your choice either way", "warn") : null,
+  ]);
+  row.appendChild(meta);
+
+  if (unsupported) {
+    row.appendChild(statusPill("Not supported by this wallet", "off"));
+    card.appendChild(row);
+    card.appendChild(el("p", { class: "muted" }, "This item's request format isn't one this test wallet can answer. It will be reported as unsupported."));
+    return card;
+  }
+
+  const checked = decisions[item.id]?.share !== false;
+  const toggle = el("button", {
+    class: "toggle",
+    role: "switch",
+    "aria-checked": String(checked),
+    type: "button",
+    onclick: (e) => {
+      decisions[item.id].share = !decisions[item.id].share;
+      e.currentTarget.setAttribute("aria-checked", String(decisions[item.id].share));
+    },
+  });
+  row.appendChild(toggle);
+  card.appendChild(row);
+
+  if (item.content?.kind === "form.fhir") {
+    const form = formState[item.id];
+    const block = el("div", { class: "form-block" });
+    if (form?.questionnaire) {
+      const decision = decisions[item.id];
+      const values = (decision.answers ??= {});
+      decision.prefilled ??= applyPrefill(form.questionnaire, values);
+      const draw = () => {
+        block.innerHTML = "";
+        if (decision.prefilled.size) {
+          block.appendChild(
+            el("p", { class: "muted" }, "Some answers were filled in from this wallet's record. Check them and change anything that's wrong before sharing."),
+          );
+          block.appendChild(
+            el("button", {
+              type: "button",
+              onclick: () => {
+                for (const key of Object.keys(values)) delete values[key];
+                decision.prefilled = new Set();
+                draw();
+              },
+            }, "Clear prefilled answers"),
+          );
+        }
+        const registry = new Map();
+        const ctx = { registry, refresh: null, prefilled: decision.prefilled };
+        ctx.refresh = makeVisibilityRefresh(registry, values);
+        for (const qItem of form.questionnaire.item ?? []) renderQuestionnaireItem(qItem, values, block, ctx);
+        ctx.refresh();
+      };
+      draw();
+    } else {
+      block.appendChild(el("p", { class: "muted" }, "Could not load this form."));
+    }
+    card.appendChild(block);
+  } else if (item.content?.kind === "selection.fhir") {
+    const entries = selectEntries(item.content, ALL_ENTRIES, { exclude: excludeFor(item) });
+    card.appendChild(
+      el(
+        "p",
+        { class: "bundle-note" },
+        entries.length
+          ? `Matches ${entries.length} record${entries.length === 1 ? "" : "s"} in this test wallet (~${formatBytes(entriesSize(entries))}).`
+          : "No matching record in this test wallet -- will be reported as unavailable.",
+      ),
+    );
+  }
+
+  return card;
+}
+
+function renderConsentScreen({ request, origin, unsupportedItems, formState, onSubmit, onDeclineAll }) {
+  app.innerHTML = "";
+  const decisions = {};
+  for (const item of request.items) decisions[item.id] = { share: true, answers: {} };
+  const combineState = { value: false };
+
+  const unsupportedIds = new Set((unsupportedItems ?? []).map(unsupportedIdOf).filter(Boolean));
+
+  app.appendChild(el("h1", {}, "Share your health information?"));
+  app.appendChild(
+    el("div", { class: "origin-banner" }, [
+      "A website is asking for your health information: ",
+      el("br"),
+      el("strong", {}, origin),
+    ]),
+  );
+  if (request.purpose) app.appendChild(el("p", { class: "muted" }, request.purpose));
+
+  const combineRow = el("div", { class: "item-row" });
+  combineRow.appendChild(
+    el("div", { class: "item-meta" }, [
+      el("div", { class: "item-title" }, "Combine shareable records into one bundle"),
+      el("div", { class: "item-summary" }, "When more than one item below can be answered with FHIR records, reply with a single shared bundle instead of one per item. Off by default; tests the “shared-artifact” scenario."),
+    ]),
+  );
+  const combineToggle = el("button", {
+    class: "toggle",
+    role: "switch",
+    "aria-checked": "false",
+    type: "button",
+    onclick: (e) => {
+      combineState.value = !combineState.value;
+      e.currentTarget.setAttribute("aria-checked", String(combineState.value));
+    },
+  });
+  combineRow.appendChild(combineToggle);
+  app.appendChild(el("div", { class: "card" }, [combineRow]));
+
+  const list = el("div", { class: "status-list" });
+  for (const item of request.items) {
+    list.appendChild(
+      itemCard({
+        item,
+        unsupported: unsupportedIds.has(item.id),
+        decisions,
+        formState,
+      }),
+    );
+  }
+  app.appendChild(list);
+
+  const actions = el("div", { class: "actions" });
+  actions.appendChild(
+    el("button", { onclick: () => onSubmit(decisions, combineState.value) }, "Decline all"),
+  );
+  const shareBtn = el("button", { class: "primary", onclick: () => onSubmit(decisions, combineState.value) }, "Share selected items");
+  actions.appendChild(shareBtn);
+  app.appendChild(actions);
+
+  // "Decline all" above reuses onSubmit with every toggle off instead of a
+  // separate declineAll button, except when the caller wants the exact
+  // declineAll(request) shape (see wireRealRequest below) -- swap the handler:
+  actions.firstChild.onclick = onDeclineAll;
+
+  app.appendChild(el("p", { class: "footer-note" }, "M5 Health Test Wallet -- synthetic data only, built for the SMART Health Check-in connectathon."));
+}
+
+function renderDone({ origin, response }) {
+  app.innerHTML = "";
+  app.appendChild(el("h1", {}, "Sent"));
+  app.appendChild(el("p", { class: "muted" }, `Replied to ${origin}.`));
+  const list = el("div", { class: "status-list" });
+  for (const s of response.requestStatus) {
+    list.appendChild(
+      el("div", { class: "status-row" }, [
+        el("span", {}, s.item),
+        statusPill(s.status, s.status === "fulfilled" ? "" : s.status === "declined" || s.status === "unsupported" ? "off" : "warn"),
+      ]),
+    );
+  }
+  app.appendChild(list);
+  if (response.artifacts?.length) {
+    app.appendChild(
+      el(
+        "p",
+        { class: "bundle-note" },
+        `${response.artifacts.length} artifact${response.artifacts.length === 1 ? "" : "s"} sent (~${formatBytes(JSON.stringify(response.artifacts).length)} total).`,
+      ),
+    );
+  }
+  app.appendChild(el("div", { class: "actions" }, [el("button", { onclick: () => window.close() }, "Close window")]));
+}
+
+// Two tabs on the home screen: "Wallet" (this page answering a request --
+// the original, still-default behavior) and "Verifier" (this page SENDING
+// one, to itself or another team's wallet). Only shown on the home screen;
+// a real incoming protocol request still takes over the whole page via
+// renderConsentScreen/renderDone, same as before this tab system existed.
+let homeTab = "wallet";
+
+function renderHome({ opened }) {
+  app.innerHTML = "";
+  app.appendChild(
+    el("div", { class: "tabs" }, [
+      el("button", {
+        class: `tab-btn${homeTab === "wallet" ? " active" : ""}`,
+        type: "button",
+        onclick: () => {
+          homeTab = "wallet";
+          renderHome({ opened });
+        },
+      }, "Wallet"),
+      el("button", {
+        class: `tab-btn${homeTab === "verifier" ? " active" : ""}`,
+        type: "button",
+        onclick: () => {
+          homeTab = "verifier";
+          renderHome({ opened });
+        },
+      }, "Verifier"),
+    ]),
+  );
+  if (homeTab === "verifier") renderVerifierTab();
+  else renderWalletTab({ opened });
+}
+
+function renderWalletTab({ opened }) {
+  app.appendChild(el("h1", {}, "M5 Health Test Wallet"));
+  app.appendChild(
+    el("p", {}, [
+      "A web wallet for the ",
+      el("a", { href: "https://smart-health-checkin.org/connectathon/", target: "_blank", rel: "noopener" }, "SMART Health Check-in connectathon"),
+      " (“Kill the Clipboard”), built with the official client library v0.4.4, unmodified. Synthetic patient data only -- nothing here is real.",
+    ]),
+  );
+
+  const card = el("div", { class: "card" });
+  card.appendChild(el("h2", {}, "Use it against a check-in page"));
+  card.appendChild(el("p", { class: "muted" }, "Point a Verifier at this page's URL (directly, or via the SMART Testing EHR's “Web wallet URL” field, which accepts a URL before it's in the event registry):"));
+  const copyRow = el("div", { class: "copy-row" });
+  const urlInput = el("input", { type: "text", readonly: "true", value: location.href });
+  const copyBtn = el("button", {
+    onclick: async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        copyBtn.textContent = "Copied";
+        setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+      } catch {
+        urlInput.select();
+      }
+    },
+  }, "Copy");
+  copyRow.appendChild(urlInput);
+  copyRow.appendChild(copyBtn);
+  card.appendChild(copyRow);
+  app.appendChild(card);
+
+  const previewCard = el("div", { class: "card" });
+  previewCard.appendChild(el("h2", {}, "Preview the consent screen"));
+  previewCard.appendChild(el("p", { class: "muted" }, "Shows this wallet's own UI against a bundle of sample requests covering the minimum scenarios plus large-response, narrowed-family, physician-form (enableWhen + repeats), and shared-artifact (toggle), without a real Verifier or the signing/encryption step."));
+  previewCard.appendChild(el("button", { onclick: showPreview }, "Preview"));
+  app.appendChild(previewCard);
+
+  if (!opened) {
+    app.appendChild(el("p", { class: "muted" }, "Opened directly, not from a check-in page, so there's nothing to answer right now. Use the Verifier tab above to send yourself a request instead."));
+  }
+
+  const coverageCard = el("div", { class: "card" });
+  coverageCard.appendChild(el("h2", {}, "What this wallet can and can't do"));
+  coverageCard.appendChild(
+    el("p", { class: "muted" }, "This reflects what this page's code handles. It has not been checked against every team's Verifier, so treat “Supported” as “built to handle”, not “certified”. Preview, or a Verifier-tab round trip to this same URL, are the quickest self-checks."),
+  );
+  const coverageRows = [
+    ["demographics, problems, medications (minimum scenarios)", "Supported", "", "Answered from the synthetic patient record."],
+    ["any-us-core, decline-all, no-selector, unknown-selector", "Supported", "", "Profile-based matching plus the library's own fallbacks."],
+    ["large-response, narrowed-family", "Supported", "", "Served from a generated ~3.2 MB, 5-year synthetic vitals/labs history."],
+    ["form-by-reference, versioned-canonical", "Supported", "", "A bare canonical is fetched; any |version suffix is echoed back."],
+    ["physician-form", "Supported", "", "enableWhen, repeats and open-choice, against whatever Questionnaire the Verifier sends."],
+    ["shared-artifact", "Supported (opt-in)", "", "Toggle “combine shareable records” on the consent screen; off by default."],
+    ["health-card, insurance-card", "Not supported", "off", "Needs real SMART Health Card signing; the client library has no wallet-side signer."],
+    ["cross-device, in-person-handoff", "Not possible here", "off", "Native Android wallet only; a web wallet can't do these."],
+    ["write-back", "Not a wallet role", "off", "Happens on the EHR/Verifier side."],
+    ["prefilled-form", "Supported (best effort)", "", "Answers are filled from the record by matching question text and option labels (the forms carry no LOINC codes), shown with a “Prefilled” tag, and stay editable. Unrecognized questions are left blank."],
+  ];
+  const coverageList = el("div", { class: "status-list" });
+  for (const [scenario, label, tone, note] of coverageRows) {
+    coverageList.appendChild(
+      el("div", { class: "item-meta" }, [
+        el("div", { class: "status-row" }, [el("span", { class: "item-title" }, scenario), statusPill(label, tone)]),
+        el("span", { class: "item-summary" }, note),
+      ]),
+    );
+  }
+  coverageCard.appendChild(coverageList);
+  app.appendChild(coverageCard);
+
+  app.appendChild(
+    el("p", { class: "footer-note" }, [
+      "Synthetic data only. Source: ",
+      el("a", { href: "https://github.com/crookhaven/M5-Health", target: "_blank", rel: "noopener" }, "crookhaven/M5-Health"),
+      ".",
+    ]),
+  );
+}
+
+// The connectathon's own published test items, embedded so "Preview" works
+// with no network call. Source: smart-health-checkin.org/connectathon/requests/
+const PHQ2_QUESTIONNAIRE = {
+  resourceType: "Questionnaire",
+  url: "https://smart-health-checkin.org/connectathon/forms/phq2",
+  version: "1",
+  status: "draft",
+  code: [{ system: "http://loinc.org", code: "55757-9", display: "Patient Health Questionnaire 2 item (PHQ-2) total score" }],
+  item: [
+    {
+      linkId: "44250-9",
+      text: "Little interest or pleasure in doing things",
+      type: "choice",
+      answerOption: [
+        { valueCoding: { system: "http://loinc.org", code: "LA6568-5", display: "Not at all" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6569-3", display: "Several days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6570-1", display: "More than half the days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6571-9", display: "Nearly every day" } },
+      ],
+    },
+    {
+      linkId: "44255-8",
+      text: "Feeling down, depressed, or hopeless",
+      type: "choice",
+      answerOption: [
+        { valueCoding: { system: "http://loinc.org", code: "LA6568-5", display: "Not at all" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6569-3", display: "Several days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6570-1", display: "More than half the days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6571-9", display: "Nearly every day" } },
+      ],
+    },
+  ],
+};
+
+// A good-faith reconstruction of the connectathon's "physician-form" scenario
+// (connectathon/Questionnaire/semaglutide-4-week-checkin.json), used ONLY to
+// drive the local "Preview" button when there's no live Verifier to test
+// against. The linkIds, item types, and the two enableWhen conditions below
+// are confirmed against the real file (missed-why keyed off missed=once/more
+// with enableBehavior "any"; red-flags-note keyed off red-flags existing);
+// the exact answerOption codes/display text are this wallet's own
+// reconstruction, not a byte-for-byte copy, since the real file's text
+// couldn't be retrieved verbatim in this session. This matters only for the
+// Preview button: against a REAL Verifier, resolveFormState below uses
+// whatever Questionnaire that Verifier actually sends inline, and the
+// enableWhen/repeats engine (isItemEnabled, conditionMet, and the
+// choice/open-choice branch of renderQuestionnaireItem) evaluates that real
+// form directly -- it isn't hardcoded to this reconstruction.
+const SEMAGLUTIDE_CODE_SYSTEM = "https://smart-health-checkin.org/connectathon/CodeSystem/semaglutide-checkin";
+function sgCoding(code, display) {
+  return { system: SEMAGLUTIDE_CODE_SYSTEM, code, display };
+}
+const PHYSICIAN_QUESTIONNAIRE = {
+  resourceType: "Questionnaire",
+  url: "https://smart-health-checkin.org/connectathon/Questionnaire/semaglutide-4-week-checkin.json",
+  version: "1",
+  name: "SemaglutideFourWeekCheckin",
+  title: "Semaglutide 4-week check-in",
+  status: "draft",
+  subjectType: ["Patient"],
+  item: [
+    { linkId: "intro", type: "display", text: "A few questions about your first month on semaglutide. Takes about 3 minutes." },
+    { linkId: "doses-taken", type: "integer", text: "How many weekly shots have you taken so far?" },
+    {
+      linkId: "missed",
+      type: "choice",
+      text: "Have you missed or been very late with any shots?",
+      answerOption: [
+        { valueCoding: sgCoding("missed-no", "No") },
+        { valueCoding: sgCoding("missed-once", "Yes, once") },
+        { valueCoding: sgCoding("missed-more", "Yes, more than once") },
+      ],
+    },
+    {
+      linkId: "missed-why",
+      type: "text",
+      text: "What made it hard to take the shot on schedule?",
+      enableBehavior: "any",
+      enableWhen: [
+        { question: "missed", operator: "=", answerCoding: sgCoding("missed-once", "Yes, once") },
+        { question: "missed", operator: "=", answerCoding: sgCoding("missed-more", "Yes, more than once") },
+      ],
+    },
+    {
+      linkId: "pen-trouble",
+      type: "open-choice",
+      repeats: true,
+      text: "Any trouble with the pen or injection itself? Select all that apply.",
+      answerOption: [
+        { valueCoding: sgCoding("pen-site-reaction", "Redness or soreness at the injection site") },
+        { valueCoding: sgCoding("pen-dosing", "Trouble setting the right dose") },
+        { valueCoding: sgCoding("pen-device", "Pen jammed or wouldn't click") },
+      ],
+    },
+    {
+      linkId: "nausea",
+      type: "choice",
+      text: "How much nausea have you had in the past week?",
+      answerOption: [
+        { valueCoding: sgCoding("sev-none", "None") },
+        { valueCoding: sgCoding("sev-mild", "Mild") },
+        { valueCoding: sgCoding("sev-moderate", "Moderate") },
+        { valueCoding: sgCoding("sev-severe", "Severe") },
+      ],
+    },
+    {
+      linkId: "vomiting",
+      type: "choice",
+      text: "Any vomiting in the past week?",
+      answerOption: [
+        { valueCoding: sgCoding("vom-none", "None") },
+        { valueCoding: sgCoding("vom-once", "Once") },
+        { valueCoding: sgCoding("vom-repeated", "More than once") },
+      ],
+    },
+    {
+      linkId: "bowels",
+      type: "choice",
+      text: "Any changes in bowel habits?",
+      answerOption: [
+        { valueCoding: sgCoding("bowel-none", "No change") },
+        { valueCoding: sgCoding("bowel-constipation", "Constipation") },
+        { valueCoding: sgCoding("bowel-diarrhea", "Diarrhea") },
+        { valueCoding: sgCoding("bowel-both", "Both, at different times") },
+      ],
+    },
+    { linkId: "fluids", type: "boolean", text: "Have you been able to drink enough fluids?" },
+    {
+      linkId: "appetite",
+      type: "choice",
+      text: "Any change in appetite?",
+      answerOption: [
+        { valueCoding: sgCoding("appetite-same", "About the same") },
+        { valueCoding: sgCoding("appetite-less", "Less hungry") },
+        { valueCoding: sgCoding("appetite-much-less", "Much less hungry") },
+        { valueCoding: sgCoding("appetite-more", "More hungry") },
+      ],
+    },
+    { linkId: "low-sugar", type: "boolean", text: "Any shaky, sweaty, or confused spells, especially after eating less?" },
+    {
+      linkId: "red-flags",
+      type: "choice",
+      repeats: true,
+      text: "Any of these warning symptoms? Select all that apply.",
+      answerOption: [
+        { valueCoding: sgCoding("flag-abdominal-pain", "Severe, constant abdominal pain") },
+        { valueCoding: sgCoding("flag-vision", "Sudden vision changes") },
+        { valueCoding: sgCoding("flag-dehydration", "Signs of dehydration (dizziness, very dark urine)") },
+        { valueCoding: sgCoding("flag-allergic", "Swelling, hives, or trouble breathing") },
+        { valueCoding: sgCoding("flag-none", "None of these") },
+      ],
+    },
+    {
+      linkId: "red-flags-note",
+      type: "display",
+      text: "Please call the office today -- one of your answers needs a same-day check-in.",
+      enableWhen: [{ question: "red-flags", operator: "exists" }],
+    },
+    {
+      linkId: "next-dose",
+      type: "choice",
+      text: "How ready do you feel to move up to the next dose?",
+      answerOption: [
+        { valueCoding: sgCoding("ready-yes", "Ready") },
+        { valueCoding: sgCoding("ready-not-yet", "Not yet -- stay at this dose") },
+        { valueCoding: sgCoding("ready-unsure", "Not sure") },
+      ],
+    },
+    { linkId: "questions", type: "text", text: "Anything else you want to ask your care team before your visit?" },
+  ],
+};
+
+// Our own demo form (not a connectathon one) for the prefilled-form scenario.
+// Mixes questions the record can answer with ones it must leave blank --
+// including look-alikes (emergency contact, email) that must NOT be prefilled.
+const PREFILL_DEMO_QUESTIONNAIRE = {
+  resourceType: "Questionnaire",
+  url: "https://crookhaven.github.io/M5-Health/test-wallet/questionnaires/registration-demo",
+  version: "1",
+  status: "active",
+  title: "Registration (prefill demo)",
+  item: [
+    { linkId: "first-name", text: "First name", type: "string" },
+    { linkId: "last-name", text: "Last name", type: "string" },
+    { linkId: "dob", text: "Date of birth", type: "date" },
+    {
+      linkId: "sex",
+      text: "Sex",
+      type: "choice",
+      answerOption: [
+        { valueCoding: { system: "urn:demo", code: "f", display: "Female" } },
+        { valueCoding: { system: "urn:demo", code: "m", display: "Male" } },
+        { valueCoding: { system: "urn:demo", code: "o", display: "Another" } },
+      ],
+    },
+    { linkId: "emergency-name", text: "Emergency contact name", type: "string" },
+    { linkId: "email", text: "Email address", type: "string" },
+    {
+      linkId: "allergies",
+      text: "Allergies (select all that apply)",
+      type: "open-choice",
+      repeats: true,
+      answerOption: [
+        { valueCoding: { system: "urn:demo", code: "latex", display: "Latex" } },
+        { valueCoding: { system: "urn:demo", code: "pcn", display: "Penicillin" } },
+        { valueCoding: { system: "urn:demo", code: "nuts", display: "Peanut" } },
+      ],
+    },
+    { linkId: "meds", text: "Current medications", type: "text" },
+    { linkId: "diabetes", text: "Do you have diabetes?", type: "boolean" },
+    { linkId: "asthma", text: "Do you have asthma?", type: "boolean" },
+    { linkId: "travel", text: "Any recent travel outside the country?", type: "string" },
+  ],
+};
+
+const SAMPLE_REQUEST = {
+  type: "smart-health-checkin-request",
+  version: "1",
+  id: "preview",
+  purpose: "Pre-visit check-in (preview -- no data leaves this page)",
+  fhirVersions: [FHIR_VERSION],
+  items: [
+    { id: "patient", title: "Demographics", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-patient"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "problems", title: "Problems and health concerns", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-condition-problems-health-concerns"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "allergies", title: "Allergies", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-allergyintolerance"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "medications", title: "Medications", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-medicationrequest"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "immunizations", title: "Immunizations", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-immunization"] }, accept: [FHIR_MEDIA_TYPE] },
+    {
+      id: "coverage",
+      title: "Insurance card",
+      summary: "Your insurance card, as a CARIN digital insurance card or US Core coverage record.",
+      content: { kind: "selection.fhir", profiles: [C4DIC_COVERAGE, US_CORE + "us-core-coverage"] },
+      accept: [FHIR_MEDIA_TYPE, "application/smart-health-card"],
+    },
+    {
+      id: "labs-vitals",
+      title: "Recent lab results and vitals",
+      summary: "Recent lab results and vital signs (narrowed-family: Observation only, via profilesFrom + resourceTypes).",
+      content: { kind: "selection.fhir", profilesFrom: [US_CORE_IG], resourceTypes: ["Observation"] },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
+      id: "uscdi",
+      title: "Everything in your US Core record",
+      summary: "Anything in your record that conforms to US Core -- any-us-core, and (given the synthetic history below) large-response too.",
+      content: { kind: "selection.fhir", profilesFrom: [US_CORE_IG] },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
+      id: "registration",
+      title: "Registration",
+      summary: "prefilled-form demo: answers the record can supply are filled in and tagged; the rest stay blank.",
+      content: { kind: "form.fhir", questionnaireCanonical: PREFILL_DEMO_QUESTIONNAIRE.url + "|1", questionnaire: PREFILL_DEMO_QUESTIONNAIRE },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
+      id: "semaglutide",
+      title: "How your new medicine is going",
+      summary: "A short check-in about your first month on semaglutide -- physician-form (enableWhen + repeats).",
+      content: { kind: "form.fhir", questionnaireCanonical: PHYSICIAN_QUESTIONNAIRE.url + "|1", questionnaire: PHYSICIAN_QUESTIONNAIRE },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+    {
+      id: "phq2",
+      title: "A couple of quick mood questions",
+      required: true,
+      content: { kind: "form.fhir", questionnaireCanonical: PHQ2_QUESTIONNAIRE.url + "|1", questionnaire: PHQ2_QUESTIONNAIRE },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+  ],
+};
+
+function showPreview() {
+  const formState = {
+    phq2: { questionnaire: PHQ2_QUESTIONNAIRE },
+    semaglutide: { questionnaire: PHYSICIAN_QUESTIONNAIRE },
+    registration: { questionnaire: PREFILL_DEMO_QUESTIONNAIRE },
+  };
+  renderConsentScreen({
+    request: SAMPLE_REQUEST,
+    origin: "(preview -- no real Verifier)",
+    unsupportedItems: [],
+    formState,
+    onSubmit: (decisions, combineShared) => {
+      const response = buildResponse(SAMPLE_REQUEST, [], decisions, formState, { combineShared });
+      renderDone({ origin: "(preview)", response });
+    },
+    onDeclineAll: () => {
+      const response = declineAll(SAMPLE_REQUEST);
+      renderDone({ origin: "(preview)", response });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Verifier tab -- this page playing the CLINIC/EHR role: building a request
+// and sending it to a wallet (this same page's own URL, or another team's),
+// instead of answering one. Uses the official <smart-checkin-picker> element
+// rather than hand-rolling the window.open()/postMessage timing ourselves --
+// that timing is click-handler-sensitive (see docs/web-wallets.md) and the
+// picker already gets it right.
+// ---------------------------------------------------------------------------
+
+function renderVerifierTab() {
+  app.appendChild(el("h1", {}, "Verifier"));
+  app.appendChild(
+    el("p", {}, [
+      "Play the clinic's role: build a request and send it to a wallet, then see what comes back. Add ",
+      el("strong", {}, "this page's own URL"),
+      " below to run the full Wallet ↔ Verifier round trip in two tabs with nothing else involved, or add another team's wallet URL to test against theirs.",
+    ]),
+  );
+
+  const walletCard = el("div", { class: "card" });
+  walletCard.appendChild(el("h2", {}, "Add a wallet by URL"));
+  walletCard.appendChild(
+    el("p", { class: "muted" }, "Kept in this browser only (localStorage) -- the same way the SMART Testing EHR's own “Web wallet URL” field works, so you can test before anything is registered."),
+  );
+  const nameInput = el("input", { type: "text", placeholder: "Name (e.g. M5 Health self-test)" });
+  const urlInput = el("input", { type: "text", placeholder: "https://…/test-wallet/" });
+  walletCard.appendChild(el("div", { class: "copy-row" }, [nameInput]));
+  walletCard.appendChild(el("div", { class: "copy-row" }, [urlInput]));
+  const addActions = el("div", { class: "actions" });
+  addActions.appendChild(
+    el("button", {
+      type: "button",
+      onclick: () => {
+        urlInput.value = location.href;
+        nameInput.value = "This page (self-test)";
+      },
+    }, "Use this page's URL"),
+  );
+  const addBtn = el("button", { class: "primary", type: "button", onclick: () => addCustomWallet() }, "Add");
+  addActions.appendChild(addBtn);
+  walletCard.appendChild(addActions);
+  const customList = el("div", { class: "status-list" });
+  walletCard.appendChild(customList);
+  app.appendChild(walletCard);
+
+  const requestCard = el("div", { class: "card" });
+  requestCard.appendChild(el("h2", {}, "Build the request"));
+  requestCard.appendChild(el("p", { class: "muted" }, "Everything selected by default -- uncheck anything you don't want to ask for."));
+  const checkedIds = new Set(SAMPLE_REQUEST.items.map((i) => i.id));
+  const checklist = el("div", { class: "status-list" });
+  for (const item of SAMPLE_REQUEST.items) {
+    const row = el("div", { class: "item-row" });
+    const id = `vi-${item.id}`;
+    row.appendChild(el("label", { for: id, class: "item-meta" }, [el("div", { class: "item-title" }, item.title ?? item.id)]));
+    row.appendChild(
+      el("input", {
+        type: "checkbox",
+        id,
+        checked: "true",
+        onchange: (e) => {
+          if (e.target.checked) checkedIds.add(item.id);
+          else checkedIds.delete(item.id);
+        },
+      }),
+    );
+    checklist.appendChild(row);
+  }
+  requestCard.appendChild(checklist);
+  app.appendChild(requestCard);
+
+  function buildRequest() {
+    return {
+      purpose: "M5 Health Verifier test -- pre-visit check-in",
+      items: SAMPLE_REQUEST.items.filter((i) => checkedIds.has(i.id)),
+    };
+  }
+
+  const pickerCard = el("div", { class: "card" });
+  pickerCard.appendChild(el("h2", {}, "Send it"));
+  pickerCard.appendChild(el("p", { class: "muted" }, "Choose a wallet below to run the check-in against it. The phone's own wallet is hidden here -- this tool is for testing web wallets specifically."));
+  const picker = document.createElement("smart-checkin-picker");
+  picker.setAttribute("mode", "pick");
+  picker.setAttribute("platform", "off");
+  pickerCard.appendChild(picker);
+  app.appendChild(pickerCard);
+
+  const resultCard = el("div", { class: "card", hidden: "true" });
+  resultCard.id = "verifier-result";
+  app.appendChild(resultCard);
+
+  function renderCustomWalletList() {
+    customList.innerHTML = "";
+    const list = loadCustomWallets();
+    if (!list.length) {
+      customList.appendChild(el("p", { class: "muted" }, "No custom wallets added yet."));
+      return;
+    }
+    for (const w of list) {
+      const row = el("div", { class: "status-row" }, [
+        el("span", {}, `${w.name} — ${w.walletUrl}`),
+        el("button", {
+          type: "button",
+          class: "danger-text",
+          onclick: () => {
+            saveCustomWallets(loadCustomWallets().filter((x) => x.id !== w.id));
+            renderCustomWalletList();
+            refreshWallets();
+          },
+        }, "Remove"),
+      ]);
+      customList.appendChild(row);
+    }
+  }
+
+  function addCustomWallet() {
+    const name = nameInput.value.trim();
+    const url = urlInput.value.trim();
+    if (!name || !url) return;
+    const list = loadCustomWallets();
+    list.push({ id: `custom-${Date.now()}`, name, walletUrl: url, target: "tab" });
+    saveCustomWallets(list);
+    nameInput.value = "";
+    urlInput.value = "";
+    renderCustomWalletList();
+    refreshWallets();
+  }
+
+  async function refreshWallets() {
+    let registryWallets = [];
+    try {
+      registryWallets = await wallets({ registry: REGISTRY_URL });
+    } catch {
+      // Registry unreachable (offline, CORS, etc.) -- custom wallets still work.
+    }
+    picker.wallets = [...registryWallets, ...loadCustomWallets()];
+  }
+
+  renderCustomWalletList();
+  picker.request = buildRequest();
+  refreshWallets();
+
+  // Re-build the request right before the patient actually picks a wallet,
+  // so a checkbox ticked after the first render still takes effect.
+  picker.addEventListener("smart-checkin-choose", () => {
+    picker.request = buildRequest();
+  });
+  picker.addEventListener("smart-checkin-response", (e) => showVerifierResult({ outcome: "completed", detail: e.detail }));
+  picker.addEventListener("smart-checkin-declined", () => showVerifierResult({ outcome: "declined" }));
+  picker.addEventListener("smart-checkin-error", (e) => showVerifierResult({ outcome: "error", detail: e.detail }));
+}
+
+function showVerifierResult({ outcome, detail }) {
+  const card = document.getElementById("verifier-result");
+  if (!card) return;
+  card.hidden = false;
+  card.innerHTML = "";
+  card.appendChild(el("h2", {}, "Result"));
+
+  if (outcome === "declined") {
+    card.appendChild(statusPill("declined", "off"));
+    card.appendChild(el("p", { class: "muted" }, "The wallet declined the request."));
+    return;
+  }
+  if (outcome === "error") {
+    card.appendChild(statusPill(detail?.code ?? "error", "warn"));
+    card.appendChild(el("p", { class: "muted" }, detail?.message ?? "The wallet reported an error."));
+    return;
+  }
+
+  const response = detail?.response;
+  if (!response) {
+    card.appendChild(el("p", { class: "muted" }, "Completed, but no response object came back."));
+    return;
+  }
+
+  let items = [];
+  try {
+    items = response.items?.() ?? [];
+  } catch {
+    items = [];
+  }
+  if (items.length) {
+    const list = el("div", { class: "status-list" });
+    for (const it of items) {
+      list.appendChild(
+        el("div", { class: "status-row" }, [
+          el("span", {}, it.title ?? it.id ?? it.item ?? "(item)"),
+          statusPill(it.status ?? "unknown", it.status === "fulfilled" ? "" : it.status === "declined" || it.status === "unsupported" ? "off" : "warn"),
+        ]),
+      );
+    }
+    card.appendChild(list);
+  }
+
+  const rawDetails = el("details", {});
+  rawDetails.appendChild(el("summary", {}, "Raw response JSON"));
+  let rawText = "(unavailable)";
+  try {
+    rawText = JSON.stringify(response.json ?? response, null, 2);
+  } catch {
+    // leave the placeholder text
+  }
+  rawDetails.appendChild(el("pre", { class: "log" }, rawText));
+  card.appendChild(rawDetails);
+}
+
+// ---------------------------------------------------------------------------
+// Wire up the real protocol
+// ---------------------------------------------------------------------------
+
+async function resolveFormState(request) {
+  const formState = {};
+  for (const item of request.items) {
+    if (item.content?.kind !== "form.fhir") continue;
+    if (item.content.questionnaire) {
+      formState[item.id] = { questionnaire: item.content.questionnaire };
+      continue;
+    }
+    if (item.content.questionnaireCanonical) {
+      try {
+        const base = item.content.questionnaireCanonical.split("|")[0];
+        const res = await fetch(base);
+        if (res.ok) formState[item.id] = { questionnaire: await res.json() };
+      } catch {
+        // left unresolved -> reported unsupported in buildResponse
+      }
+    }
+  }
+  return formState;
+}
+
+const served = serveWebWallet({
+  onInvalidRequest(message, origin) {
+    app.innerHTML = "";
+    app.appendChild(el("h1", {}, "Could not read that request"));
+    app.appendChild(el("p", { class: "muted" }, `From ${origin}: ${message}`));
+  },
+  async onRequest({ request, origin, unsupportedItems }) {
+    const formState = await resolveFormState(request);
+    return new Promise((resolve) => {
+      renderConsentScreen({
+        request,
+        origin,
+        unsupportedItems,
+        formState,
+        onSubmit: (decisions, combineShared) => {
+          const response = buildResponse(request, unsupportedItems, decisions, formState, { combineShared });
+          renderDone({ origin, response });
+          resolve({ response });
+        },
+        onDeclineAll: () => {
+          const response = declineAll(request);
+          renderDone({ origin, response });
+          resolve({ response });
+        },
+      });
+    });
+  },
+});
+
+renderHome({ opened: served.opened });
+</script>
+</body>
+</html>
