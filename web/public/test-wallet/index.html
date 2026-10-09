@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>M5 Health Test Wallet</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #d9d6cf;
+    --text: #1d1b16;
+    --text-dim: #6b6558;
+    --accent: #1f5f4f;
+    --accent-contrast: #ffffff;
+    --warn-bg: #fdf3e3;
+    --warn-border: #e8c875;
+    --warn-text: #6b4c06;
+    --danger: #a3372a;
+    --ok-bg: #e9f3ec;
+    --ok-text: #1f5f4f;
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --surface: #1f2123;
+      --border: #34363a;
+      --text: #ece9e3;
+      --text-dim: #9b9690;
+      --accent: #5fbf9f;
+      --accent-contrast: #0c1a16;
+      --warn-bg: #34290f;
+      --warn-border: #7a5c17;
+      --warn-text: #e8c875;
+      --danger: #e2847a;
+      --ok-bg: #16281f;
+      --ok-text: #5fbf9f;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.45;
+    padding: 24px 16px 48px;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  p { margin: 0; }
+  .muted { color: var(--text-dim); font-size: 0.88rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--ok-bg);
+    color: var(--ok-text);
+    white-space: nowrap;
+  }
+  .pill.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .pill.off { background: var(--border); color: var(--text-dim); }
+  .origin-banner {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    color: var(--warn-text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 0.92rem;
+  }
+  .origin-banner strong { font-family: var(--mono); word-break: break-all; }
+  .item-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .item-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+  .item-title { font-weight: 600; }
+  .item-summary { color: var(--text-dim); font-size: 0.86rem; }
+  .toggle {
+    position: relative; width: 44px; height: 26px; flex: none;
+    border-radius: 999px; background: var(--border); border: none; cursor: pointer; padding: 0;
+  }
+  .toggle::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--surface); transition: transform 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .toggle[aria-checked="true"] { background: var(--accent); }
+  .toggle[aria-checked="true"]::after { transform: translateX(18px); }
+  .toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-block { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .q-item { display: flex; flex-direction: column; gap: 6px; }
+  .q-text { font-size: 0.92rem; }
+  .q-options { display: flex; flex-direction: column; gap: 6px; }
+  .q-option { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+  input[type="text"], input[type="number"], input[type="date"], textarea {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 9px; font: inherit; width: 100%;
+  }
+  button {
+    font: inherit; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); padding: 9px 16px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-contrast); border-color: transparent; font-weight: 600; }
+  button.danger-text { color: var(--danger); background: none; border: none; text-decoration: underline; padding: 4px 0; }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+  .bundle-note { font-size: 0.78rem; color: var(--text-dim); }
+  code.inline { font-family: var(--mono); font-size: 0.85em; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+  .footer-note { font-size: 0.78rem; color: var(--text-dim); text-align: center; padding-top: 12px; }
+  .log { font-family: var(--mono); font-size: 0.75rem; color: var(--text-dim); white-space: pre-wrap; }
+  .status-list { display: flex; flex-direction: column; gap: 8px; }
+  .status-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.9rem; }
+  .copy-row { display: flex; gap: 8px; align-items: center; }
+  .copy-row input { font-family: var(--mono); font-size: 0.82rem; flex: 1; min-width: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap" id="app">
+    <p class="muted" id="loading-note">Loading the SMART Health Check-in client library…</p>
+  </div>
+
+<script type="module">
+// M5 Health Test Wallet
+//
+// A web wallet for the "Kill the Clipboard" SMART Health Check-in connectathon
+// (https://smart-health-checkin.org/connectathon/). It implements the WALLET
+// role of the postMessage-based web-wallet protocol described in that spec's
+// client docs, using the official, unmodified client library -- this page
+// does none of the mdoc/CBOR/COSE/HPKE work itself.
+//
+// Served as a plain static file (web/public/test-wallet/), so it carries no
+// Content-Security-Policy restrictions and can load the library straight
+// from its own host.
+import {
+  serveWebWallet,
+  declineAll,
+  selectEntries,
+  selects,
+} from "https://smart-health-checkin.org/client/lib/0.4.4/wallet.js";
+
+const FHIR_VERSION = "4.0.1";
+const FHIR_MEDIA_TYPE = "application/fhir+json";
+
+// ---------------------------------------------------------------------------
+// Synthetic patient record (ground rule: synthetic data only). Jordan Rivera
+// is M5 Health's own long-standing sample patient (web/src/data/sample_fhir_bundle.json),
+// reused here with the meta.profile tags the connectathon's selectors key off of.
+// ---------------------------------------------------------------------------
+
+const PATIENT_URL = "urn:uuid:m5-test-patient";
+const PRESCRIBER_URL = "urn:uuid:m5-test-prescriber";
+const PAYER_URL = "urn:uuid:m5-test-payer";
+
+const US_CORE = "http://hl7.org/fhir/us/core/StructureDefinition/";
+const C4DIC_COVERAGE = "http://hl7.org/fhir/us/insurance-card/StructureDefinition/C4DIC-Coverage";
+
+const RECORD_ENTRIES = [
+  {
+    fullUrl: PATIENT_URL,
+    resource: {
+      resourceType: "Patient",
+      id: "m5-test-patient",
+      meta: { profile: [US_CORE + "us-core-patient"] },
+      name: [{ given: ["Jordan"], family: "Rivera" }],
+      gender: "female",
+      birthDate: "1985-04-12",
+      address: [{ line: ["48 Willow St"], city: "Ann Arbor", state: "MI", postalCode: "48104" }],
+      telecom: [{ system: "phone", value: "555-0142" }],
+      communication: [{ language: { coding: [{ system: "urn:ietf:bcp:47", code: "en", display: "English" }] } }],
+    },
+  },
+  {
+    fullUrl: PRESCRIBER_URL,
+    resource: {
+      resourceType: "Practitioner",
+      id: "m5-test-prescriber",
+      name: [{ given: ["Dana"], family: "Okafor", prefix: ["Dr."] }],
+    },
+  },
+  {
+    fullUrl: PAYER_URL,
+    resource: {
+      resourceType: "Organization",
+      id: "m5-test-payer",
+      name: "Health Management Associates",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-cond-htn",
+    resource: {
+      resourceType: "Condition",
+      id: "m5-cond-htn",
+      meta: { profile: [US_CORE + "us-core-condition-problems-health-concerns"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-clinical", code: "active" }] },
+      verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-ver-status", code: "confirmed" }] },
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-category", code: "problem-list-item" }] }],
+      code: { text: "Essential hypertension", coding: [{ system: "http://snomed.info/sct", code: "59621000", display: "Essential hypertension (disorder)" }] },
+      subject: { reference: PATIENT_URL },
+      onsetDateTime: "2020-03-01",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-cond-t2dm",
+    resource: {
+      resourceType: "Condition",
+      id: "m5-cond-t2dm",
+      meta: { profile: [US_CORE + "us-core-condition-problems-health-concerns"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-clinical", code: "active" }] },
+      verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-ver-status", code: "confirmed" }] },
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-category", code: "problem-list-item" }] }],
+      code: { text: "Type 2 diabetes mellitus", coding: [{ system: "http://snomed.info/sct", code: "44054006", display: "Diabetes mellitus type 2 (disorder)" }] },
+      subject: { reference: PATIENT_URL },
+      onsetDateTime: "2019-11-14",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-allergy-pcn",
+    resource: {
+      resourceType: "AllergyIntolerance",
+      id: "m5-allergy-pcn",
+      meta: { profile: [US_CORE + "us-core-allergyintolerance"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: "active" }] },
+      criticality: "low",
+      code: { text: "Penicillin", coding: [{ system: "http://snomed.info/sct", code: "764146007", display: "Penicillin (substance)" }] },
+      patient: { reference: PATIENT_URL },
+      reaction: [{ manifestation: [{ text: "Rash", coding: [{ system: "http://snomed.info/sct", code: "271807003", display: "Rash" }] }] }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-allergy-peanut",
+    resource: {
+      resourceType: "AllergyIntolerance",
+      id: "m5-allergy-peanut",
+      meta: { profile: [US_CORE + "us-core-allergyintolerance"] },
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: "active" }] },
+      criticality: "high",
+      code: { text: "Peanut", coding: [{ system: "http://snomed.info/sct", code: "91935009", display: "Allergy to peanut (disorder)" }] },
+      patient: { reference: PATIENT_URL },
+      reaction: [{ manifestation: [{ text: "Anaphylaxis", coding: [{ system: "http://snomed.info/sct", code: "39579001", display: "Anaphylaxis" }] }] }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-med-lisinopril",
+    resource: {
+      resourceType: "MedicationRequest",
+      id: "m5-med-lisinopril",
+      meta: { profile: [US_CORE + "us-core-medicationrequest"] },
+      status: "active",
+      intent: "order",
+      subject: { reference: PATIENT_URL },
+      requester: { reference: PRESCRIBER_URL },
+      medicationCodeableConcept: { text: "Lisinopril 10mg", coding: [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: "314076", display: "lisinopril 10 MG Oral Tablet" }] },
+      dosageInstruction: [{ text: "10 mg by mouth once daily", timing: { code: { text: "Once daily" } }, route: { text: "Oral" } }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-med-atorvastatin",
+    resource: {
+      resourceType: "MedicationRequest",
+      id: "m5-med-atorvastatin",
+      meta: { profile: [US_CORE + "us-core-medicationrequest"] },
+      status: "active",
+      intent: "order",
+      subject: { reference: PATIENT_URL },
+      requester: { reference: PRESCRIBER_URL },
+      medicationCodeableConcept: { text: "Atorvastatin 40mg", coding: [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: "259255", display: "atorvastatin 40 MG Oral Tablet" }] },
+      dosageInstruction: [{ text: "40 mg by mouth nightly", route: { text: "Oral" } }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-med-metformin",
+    resource: {
+      resourceType: "MedicationRequest",
+      id: "m5-med-metformin",
+      meta: { profile: [US_CORE + "us-core-medicationrequest"] },
+      status: "active",
+      intent: "order",
+      subject: { reference: PATIENT_URL },
+      requester: { reference: PRESCRIBER_URL },
+      medicationCodeableConcept: { text: "Metformin 500mg", coding: [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: "861007", display: "metformin hydrochloride 500 MG Oral Tablet" }] },
+      dosageInstruction: [{ text: "500 mg by mouth twice daily with meals", route: { text: "Oral" } }],
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-imm-flu",
+    resource: {
+      resourceType: "Immunization",
+      id: "m5-imm-flu",
+      meta: { profile: [US_CORE + "us-core-immunization"] },
+      status: "completed",
+      patient: { reference: PATIENT_URL },
+      vaccineCode: { text: "Influenza vaccine", coding: [{ system: "http://hl7.org/fhir/sid/cvx", code: "88", display: "influenza virus vaccine, unspecified formulation" }] },
+      occurrenceDateTime: "2025-10-03",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-imm-covid",
+    resource: {
+      resourceType: "Immunization",
+      id: "m5-imm-covid",
+      meta: { profile: [US_CORE + "us-core-immunization"] },
+      status: "completed",
+      patient: { reference: PATIENT_URL },
+      vaccineCode: { text: "COVID-19 vaccine", coding: [{ system: "http://hl7.org/fhir/sid/cvx", code: "213", display: "SARS-COV-2 (COVID-19) vaccine, unspecified" }] },
+      occurrenceDateTime: "2025-10-03",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-imm-tdap",
+    resource: {
+      resourceType: "Immunization",
+      id: "m5-imm-tdap",
+      meta: { profile: [US_CORE + "us-core-immunization"] },
+      status: "completed",
+      patient: { reference: PATIENT_URL },
+      vaccineCode: { text: "Tdap vaccine", coding: [{ system: "http://hl7.org/fhir/sid/cvx", code: "115", display: "Tdap" }] },
+      occurrenceDateTime: "2021-05-18",
+    },
+  },
+  {
+    fullUrl: "urn:uuid:m5-coverage",
+    resource: {
+      resourceType: "Coverage",
+      id: "m5-coverage",
+      meta: { profile: [US_CORE + "us-core-coverage", C4DIC_COVERAGE] },
+      status: "active",
+      type: { text: "PPO", coding: [{ system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "PPO" }] },
+      subscriberId: "EHP123456789",
+      beneficiary: { reference: PATIENT_URL },
+      relationship: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/subscriber-relationship", code: "self" }] },
+      payor: [{ reference: PAYER_URL }],
+      class: [
+        { type: { coding: [{ code: "group" }] }, value: "G-48213", name: "Riverside Manufacturing" },
+        { type: { coding: [{ code: "plan" }] }, value: "SB-HSA-PPO", name: "Simply Blue HSA PPO" },
+      ],
+      period: { start: "2026-01-01" },
+    },
+  },
+];
+
+const ALL_ENTRIES = RECORD_ENTRIES;
+const PATIENT_RESOURCE = RECORD_ENTRIES.find((e) => e.fullUrl === PATIENT_URL).resource;
+
+// ---------------------------------------------------------------------------
+// Matching + artifact building
+// ---------------------------------------------------------------------------
+
+// `selectEntries`'s `exclude` keeps the Patient out of every OTHER item's
+// bundle, pulled in only by reference, so it isn't duplicated across every
+// artifact. But a Demographics-style item that selects the Patient directly
+// must not exclude the very thing it's asking for.
+function excludeFor(item) {
+  if (item.content?.kind === "selection.fhir" && selects(item.content, PATIENT_RESOURCE)) return [];
+  return [PATIENT_URL];
+}
+
+function buildSelectionArtifact(item, entries) {
+  return {
+    id: `artifact-${item.id}`,
+    mediaType: FHIR_MEDIA_TYPE,
+    fhirVersion: FHIR_VERSION,
+    fulfills: [item.id],
+    value: {
+      resourceType: "Bundle",
+      type: "collection",
+      entry: entries.map((e) => ({ fullUrl: e.fullUrl, resource: e.resource })),
+    },
+  };
+}
+
+// Generic-enough to answer a form.fhir item the page has never seen before,
+// not just the connectathon's own PHQ-2. Supports: group, display, boolean,
+// string, text, integer, decimal, date, choice, open-choice. Does not
+// implement enableWhen or repeats -- every item is shown and answered flat.
+function flattenQuestionnaireItems(items, out = []) {
+  for (const item of items ?? []) {
+    out.push(item);
+    if (item.item?.length) flattenQuestionnaireItems(item.item, out);
+  }
+  return out;
+}
+
+function codingKey(coding) {
+  return coding ? `${coding.system ?? ""}|${coding.code ?? ""}` : "";
+}
+
+function qrItemFor(qItem, values) {
+  const children = (qItem.item ?? []).map((child) => qrItemFor(child, values)).filter(Boolean);
+  const raw = values[qItem.linkId];
+  let answer;
+  if (raw !== undefined && raw !== "" && raw !== null && raw !== false) {
+    switch (qItem.type) {
+      case "boolean":
+        answer = [{ valueBoolean: true }];
+        break;
+      case "integer":
+        answer = [{ valueInteger: Number(raw) }];
+        break;
+      case "decimal":
+        answer = [{ valueDecimal: Number(raw) }];
+        break;
+      case "date":
+        answer = [{ valueDate: raw }];
+        break;
+      case "choice":
+      case "open-choice": {
+        const opt = (qItem.answerOption ?? []).find((o) => codingKey(o.valueCoding) === raw);
+        answer = opt ? [{ valueCoding: opt.valueCoding }] : [{ valueString: String(raw) }];
+        break;
+      }
+      default:
+        answer = [{ valueString: String(raw) }];
+    }
+  }
+  if (!answer && children.length === 0) return null; // omit unanswered leaf items
+  return {
+    linkId: qItem.linkId,
+    text: qItem.text,
+    ...(answer ? { answer } : {}),
+    ...(children.length ? { item: children } : {}),
+  };
+}
+
+function buildQuestionnaireResponse(item, questionnaire, values) {
+  const canonical = item.content.questionnaireCanonical ?? questionnaire?.url;
+  const qrItems = (questionnaire.item ?? []).map((qi) => qrItemFor(qi, values)).filter(Boolean);
+  return {
+    resourceType: "QuestionnaireResponse",
+    status: "completed",
+    questionnaire: canonical,
+    subject: { reference: PATIENT_URL },
+    authored: new Date().toISOString(),
+    item: qrItems,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Request/response assembly
+// ---------------------------------------------------------------------------
+
+// `unsupportedItems` entries aren't fully documented; this reads whichever
+// shape shows up (a bare id string, or an object carrying `item`/`id`/`itemId`).
+function unsupportedIdOf(entry) {
+  if (typeof entry === "string") return entry;
+  return entry?.item ?? entry?.id ?? entry?.itemId;
+}
+
+function buildResponse(request, unsupportedItems, decisions, formState) {
+  const unsupportedIds = new Set((unsupportedItems ?? []).map(unsupportedIdOf).filter(Boolean));
+  const requestStatus = [];
+  const artifacts = [];
+
+  for (const item of request.items) {
+    if (unsupportedIds.has(item.id)) {
+      requestStatus.push({ item: item.id, status: "unsupported" });
+      continue;
+    }
+
+    const decision = decisions[item.id];
+    if (!decision || decision.share === false) {
+      requestStatus.push({ item: item.id, status: "declined" });
+      continue;
+    }
+
+    const accept = item.accept ?? [];
+    if (!accept.includes(FHIR_MEDIA_TYPE)) {
+      requestStatus.push({ item: item.id, status: "unsupported", message: "This wallet only produces application/fhir+json for this item." });
+      continue;
+    }
+
+    if (item.content?.kind === "selection.fhir") {
+      const entries = selectEntries(item.content, ALL_ENTRIES, { exclude: excludeFor(item) });
+      if (entries.length === 0) {
+        requestStatus.push({ item: item.id, status: "unavailable" });
+      } else {
+        artifacts.push(buildSelectionArtifact(item, entries));
+        requestStatus.push({ item: item.id, status: "fulfilled" });
+      }
+      continue;
+    }
+
+    if (item.content?.kind === "form.fhir") {
+      const form = formState[item.id];
+      if (!form?.questionnaire) {
+        requestStatus.push({ item: item.id, status: "unsupported", message: "Could not resolve this form." });
+        continue;
+      }
+      const qr = buildQuestionnaireResponse(item, form.questionnaire, decision.answers ?? {});
+      if (!qr.item.length) {
+        requestStatus.push({ item: item.id, status: "unavailable" });
+        continue;
+      }
+      artifacts.push({
+        id: `artifact-${item.id}`,
+        mediaType: FHIR_MEDIA_TYPE,
+        fhirVersion: FHIR_VERSION,
+        fulfills: [item.id],
+        value: qr,
+      });
+      requestStatus.push({ item: item.id, status: "fulfilled" });
+      continue;
+    }
+
+    // Unknown content kind the library didn't already flag.
+    requestStatus.push({ item: item.id, status: "unsupported" });
+  }
+
+  return {
+    type: "smart-health-checkin-response",
+    version: "1",
+    requestId: request.id,
+    artifacts,
+    requestStatus,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+
+const app = document.getElementById("app");
+
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "html") node.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null) node.setAttribute(k, v);
+  }
+  for (const child of [].concat(children)) {
+    if (child == null) continue;
+    node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+  }
+  return node;
+}
+
+function statusPill(text, kind) {
+  return el("span", { class: `pill${kind ? ` ${kind}` : ""}` }, text);
+}
+
+// Renders one Questionnaire item (recursively for groups) into `container`,
+// wiring plain form controls that write into `values` by linkId.
+function renderQuestionnaireItem(qItem, values, container) {
+  if (qItem.type === "display") {
+    container.appendChild(el("p", { class: "q-text" }, qItem.text));
+    return;
+  }
+  const wrap = el("div", { class: "q-item" });
+  if (qItem.text) wrap.appendChild(el("div", { class: "q-text" }, qItem.text));
+
+  if (qItem.type === "group") {
+    for (const child of qItem.item ?? []) renderQuestionnaireItem(child, values, wrap);
+  } else if (qItem.type === "boolean") {
+    const input = el("input", { type: "checkbox", id: `q-${qItem.linkId}`, onchange: (e) => (values[qItem.linkId] = e.target.checked) });
+    wrap.appendChild(el("label", { for: `q-${qItem.linkId}` }, [input, " Yes"]));
+  } else if (qItem.type === "choice" || qItem.type === "open-choice") {
+    const options = el("div", { class: "q-options" });
+    for (const opt of qItem.answerOption ?? []) {
+      const key = codingKey(opt.valueCoding);
+      const id = `q-${qItem.linkId}-${key}`;
+      const input = el("input", {
+        type: "radio",
+        name: `q-${qItem.linkId}`,
+        id,
+        onchange: () => (values[qItem.linkId] = key),
+      });
+      options.appendChild(el("label", { class: "q-option", for: id }, [input, opt.valueCoding?.display ?? opt.valueCoding?.code ?? "(option)"]));
+    }
+    wrap.appendChild(options);
+  } else if (qItem.type === "integer" || qItem.type === "decimal") {
+    wrap.appendChild(el("input", { type: "number", step: qItem.type === "decimal" ? "any" : "1", oninput: (e) => (values[qItem.linkId] = e.target.value) }));
+  } else if (qItem.type === "date") {
+    wrap.appendChild(el("input", { type: "date", oninput: (e) => (values[qItem.linkId] = e.target.value) }));
+  } else {
+    // string, text, and anything else we don't specifically handle
+    wrap.appendChild(el("input", { type: "text", oninput: (e) => (values[qItem.linkId] = e.target.value) }));
+  }
+  container.appendChild(wrap);
+}
+
+function itemCard({ item, unsupported, decisions, formState, onToggle }) {
+  const card = el("div", { class: "card" });
+  const row = el("div", { class: "item-row" });
+  const meta = el("div", { class: "item-meta" }, [
+    el("div", { class: "item-title" }, item.title ?? item.id),
+    item.summary ? el("div", { class: "item-summary" }, item.summary) : null,
+    item.required ? statusPill("Clinic marked this needed -- your choice either way", "warn") : null,
+  ]);
+  row.appendChild(meta);
+
+  if (unsupported) {
+    row.appendChild(statusPill("Not supported by this wallet", "off"));
+    card.appendChild(row);
+    card.appendChild(el("p", { class: "muted" }, "This item's request format isn't one this test wallet can answer. It will be reported as unsupported."));
+    return card;
+  }
+
+  const checked = decisions[item.id]?.share !== false;
+  const toggle = el("button", {
+    class: "toggle",
+    role: "switch",
+    "aria-checked": String(checked),
+    type: "button",
+    onclick: (e) => {
+      decisions[item.id].share = !decisions[item.id].share;
+      e.currentTarget.setAttribute("aria-checked", String(decisions[item.id].share));
+    },
+  });
+  row.appendChild(toggle);
+  card.appendChild(row);
+
+  if (item.content?.kind === "form.fhir") {
+    const form = formState[item.id];
+    const block = el("div", { class: "form-block" });
+    if (form?.questionnaire) {
+      const values = (decisions[item.id].answers ??= {});
+      for (const qItem of form.questionnaire.item ?? []) renderQuestionnaireItem(qItem, values, block);
+    } else {
+      block.appendChild(el("p", { class: "muted" }, "Could not load this form."));
+    }
+    card.appendChild(block);
+  } else if (item.content?.kind === "selection.fhir") {
+    const entries = selectEntries(item.content, ALL_ENTRIES, { exclude: excludeFor(item) });
+    card.appendChild(
+      el(
+        "p",
+        { class: "bundle-note" },
+        entries.length
+          ? `Matches ${entries.length} record${entries.length === 1 ? "" : "s"} in this test wallet.`
+          : "No matching record in this test wallet -- will be reported as unavailable.",
+      ),
+    );
+  }
+
+  return card;
+}
+
+function renderConsentScreen({ request, origin, unsupportedItems, formState, onSubmit, onDeclineAll }) {
+  app.innerHTML = "";
+  const decisions = {};
+  for (const item of request.items) decisions[item.id] = { share: true, answers: {} };
+
+  const unsupportedIds = new Set((unsupportedItems ?? []).map(unsupportedIdOf).filter(Boolean));
+
+  app.appendChild(el("h1", {}, "Share your health information?"));
+  app.appendChild(
+    el("div", { class: "origin-banner" }, [
+      "A website is asking for your health information: ",
+      el("br"),
+      el("strong", {}, origin),
+    ]),
+  );
+  if (request.purpose) app.appendChild(el("p", { class: "muted" }, request.purpose));
+
+  const list = el("div", { class: "status-list" });
+  for (const item of request.items) {
+    list.appendChild(
+      itemCard({
+        item,
+        unsupported: unsupportedIds.has(item.id),
+        decisions,
+        formState,
+      }),
+    );
+  }
+  app.appendChild(list);
+
+  const actions = el("div", { class: "actions" });
+  actions.appendChild(
+    el("button", { onclick: () => onSubmit(decisions) }, "Decline all"),
+  );
+  const shareBtn = el("button", { class: "primary", onclick: () => onSubmit(decisions) }, "Share selected items");
+  actions.appendChild(shareBtn);
+  app.appendChild(actions);
+
+  // "Decline all" above reuses onSubmit with every toggle off instead of a
+  // separate declineAll button, except when the caller wants the exact
+  // declineAll(request) shape (see wireRealRequest below) -- swap the handler:
+  actions.firstChild.onclick = onDeclineAll;
+
+  app.appendChild(el("p", { class: "footer-note" }, "M5 Health Test Wallet -- synthetic data only, built for the SMART Health Check-in connectathon."));
+}
+
+function renderDone({ origin, response }) {
+  app.innerHTML = "";
+  app.appendChild(el("h1", {}, "Sent"));
+  app.appendChild(el("p", { class: "muted" }, `Replied to ${origin}.`));
+  const list = el("div", { class: "status-list" });
+  for (const s of response.requestStatus) {
+    list.appendChild(
+      el("div", { class: "status-row" }, [
+        el("span", {}, s.item),
+        statusPill(s.status, s.status === "fulfilled" ? "" : s.status === "declined" || s.status === "unsupported" ? "off" : "warn"),
+      ]),
+    );
+  }
+  app.appendChild(list);
+  app.appendChild(el("div", { class: "actions" }, [el("button", { onclick: () => window.close() }, "Close window")]));
+}
+
+function renderLanding({ opened }) {
+  app.innerHTML = "";
+  app.appendChild(el("h1", {}, "M5 Health Test Wallet"));
+  app.appendChild(
+    el("p", {}, [
+      "A web wallet for the ",
+      el("a", { href: "https://smart-health-checkin.org/connectathon/", target: "_blank", rel: "noopener" }, "SMART Health Check-in connectathon"),
+      " (“Kill the Clipboard”), built with the official client library v0.4.4, unmodified. Synthetic patient data only -- nothing here is real.",
+    ]),
+  );
+
+  const card = el("div", { class: "card" });
+  card.appendChild(el("h2", {}, "Use it against a check-in page"));
+  card.appendChild(el("p", { class: "muted" }, "Point a Verifier at this page's URL (directly, or via the SMART Testing EHR's “Web wallet URL” field, which accepts a URL before it's in the event registry):"));
+  const copyRow = el("div", { class: "copy-row" });
+  const urlInput = el("input", { type: "text", readonly: "true", value: location.href });
+  const copyBtn = el("button", {
+    onclick: async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        copyBtn.textContent = "Copied";
+        setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+      } catch {
+        urlInput.select();
+      }
+    },
+  }, "Copy");
+  copyRow.appendChild(urlInput);
+  copyRow.appendChild(copyBtn);
+  card.appendChild(copyRow);
+  app.appendChild(card);
+
+  const previewCard = el("div", { class: "card" });
+  previewCard.appendChild(el("h2", {}, "Preview the consent screen"));
+  previewCard.appendChild(el("p", { class: "muted" }, "Shows this wallet's own UI against the connectathon's published test request (records.json + the PHQ-2 form), without a real Verifier or the signing/encryption step."));
+  previewCard.appendChild(el("button", { onclick: showPreview }, "Preview"));
+  app.appendChild(previewCard);
+
+  if (!opened) {
+    app.appendChild(el("p", { class: "muted" }, "Opened directly, not from a check-in page, so there's nothing to answer right now."));
+  }
+
+  app.appendChild(
+    el("p", { class: "footer-note" }, [
+      "Not yet implemented: SMART Health Card artifacts (application/smart-health-card), enableWhen/repeats on forms, and resolving a form by canonical URL with no inline copy. See ",
+      el("a", { href: "https://github.com/crookhaven/M5-Health", target: "_blank", rel: "noopener" }, "crookhaven/M5-Health"),
+      ".",
+    ]),
+  );
+}
+
+// The connectathon's own published test items, embedded so "Preview" works
+// with no network call. Source: smart-health-checkin.org/connectathon/requests/
+const PHQ2_QUESTIONNAIRE = {
+  resourceType: "Questionnaire",
+  url: "https://smart-health-checkin.org/connectathon/forms/phq2",
+  version: "1",
+  status: "draft",
+  code: [{ system: "http://loinc.org", code: "55757-9", display: "Patient Health Questionnaire 2 item (PHQ-2) total score" }],
+  item: [
+    {
+      linkId: "44250-9",
+      text: "Little interest or pleasure in doing things",
+      type: "choice",
+      answerOption: [
+        { valueCoding: { system: "http://loinc.org", code: "LA6568-5", display: "Not at all" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6569-3", display: "Several days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6570-1", display: "More than half the days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6571-9", display: "Nearly every day" } },
+      ],
+    },
+    {
+      linkId: "44255-8",
+      text: "Feeling down, depressed, or hopeless",
+      type: "choice",
+      answerOption: [
+        { valueCoding: { system: "http://loinc.org", code: "LA6568-5", display: "Not at all" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6569-3", display: "Several days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6570-1", display: "More than half the days" } },
+        { valueCoding: { system: "http://loinc.org", code: "LA6571-9", display: "Nearly every day" } },
+      ],
+    },
+  ],
+};
+
+const SAMPLE_REQUEST = {
+  type: "smart-health-checkin-request",
+  version: "1",
+  id: "preview",
+  purpose: "Pre-visit check-in (preview -- no data leaves this page)",
+  fhirVersions: [FHIR_VERSION],
+  items: [
+    { id: "patient", title: "Demographics", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-patient"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "problems", title: "Problems and health concerns", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-condition-problems-health-concerns"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "allergies", title: "Allergies", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-allergyintolerance"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "medications", title: "Medications", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-medicationrequest"] }, accept: [FHIR_MEDIA_TYPE] },
+    { id: "immunizations", title: "Immunizations", content: { kind: "selection.fhir", profiles: [US_CORE + "us-core-immunization"] }, accept: [FHIR_MEDIA_TYPE] },
+    {
+      id: "coverage",
+      title: "Insurance card",
+      summary: "Your insurance card, as a CARIN digital insurance card or US Core coverage record.",
+      content: { kind: "selection.fhir", profiles: [C4DIC_COVERAGE, US_CORE + "us-core-coverage"] },
+      accept: [FHIR_MEDIA_TYPE, "application/smart-health-card"],
+    },
+    {
+      id: "phq2",
+      title: "A couple of quick mood questions",
+      required: true,
+      content: { kind: "form.fhir", questionnaireCanonical: PHQ2_QUESTIONNAIRE.url + "|1", questionnaire: PHQ2_QUESTIONNAIRE },
+      accept: [FHIR_MEDIA_TYPE],
+    },
+  ],
+};
+
+function showPreview() {
+  const formState = { phq2: { questionnaire: PHQ2_QUESTIONNAIRE } };
+  renderConsentScreen({
+    request: SAMPLE_REQUEST,
+    origin: "(preview -- no real Verifier)",
+    unsupportedItems: [],
+    formState,
+    onSubmit: (decisions) => {
+      const response = buildResponse(SAMPLE_REQUEST, [], decisions, formState);
+      renderDone({ origin: "(preview)", response });
+    },
+    onDeclineAll: () => {
+      const response = declineAll(SAMPLE_REQUEST);
+      renderDone({ origin: "(preview)", response });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Wire up the real protocol
+// ---------------------------------------------------------------------------
+
+async function resolveFormState(request) {
+  const formState = {};
+  for (const item of request.items) {
+    if (item.content?.kind !== "form.fhir") continue;
+    if (item.content.questionnaire) {
+      formState[item.id] = { questionnaire: item.content.questionnaire };
+      continue;
+    }
+    if (item.content.questionnaireCanonical) {
+      try {
+        const base = item.content.questionnaireCanonical.split("|")[0];
+        const res = await fetch(base);
+        if (res.ok) formState[item.id] = { questionnaire: await res.json() };
+      } catch {
+        // left unresolved -> reported unsupported in buildResponse
+      }
+    }
+  }
+  return formState;
+}
+
+const served = serveWebWallet({
+  onInvalidRequest(message, origin) {
+    app.innerHTML = "";
+    app.appendChild(el("h1", {}, "Could not read that request"));
+    app.appendChild(el("p", { class: "muted" }, `From ${origin}: ${message}`));
+  },
+  async onRequest({ request, origin, unsupportedItems }) {
+    const formState = await resolveFormState(request);
+    return new Promise((resolve) => {
+      renderConsentScreen({
+        request,
+        origin,
+        unsupportedItems,
+        formState,
+        onSubmit: (decisions) => {
+          const response = buildResponse(request, unsupportedItems, decisions, formState);
+          renderDone({ origin, response });
+          resolve({ response });
+        },
+        onDeclineAll: () => {
+          const response = declineAll(request);
+          renderDone({ origin, response });
+          resolve({ response });
+        },
+      });
+    });
+  },
+});
+
+renderLanding({ opened: served.opened });
+</script>
+</body>
+</html>
