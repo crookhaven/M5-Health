@@ -5,10 +5,10 @@ import { normalizeFhirBundle } from '../lib/fhir/normalize'
 import { extractClaims } from '../lib/claims/extract'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
 import { isPackageOnlyLink } from '../lib/shl/packageFile'
-import { REQUIRED_FIELDS, FIELD_LABELS, recordLabel } from '../lib/piqi/rules'
+import { REQUIRED_FIELDS, FIELD_LABELS, recordLabel, IDENTITY_FIELDS, DATE_FIELDS } from '../lib/piqi/rules'
 import { wrapAssertionValue } from '../lib/piqi/engine'
 import { DOMAINS } from '../lib/domains'
-import { collapseDuplicateRecords } from '../lib/dedup'
+import { summarizeForDisplay } from '../lib/dedup'
 import samplePatient from '../data/sample_fhir_bundle.json'
 import samplePlan from '../data/sample_plan_data.json'
 
@@ -37,7 +37,7 @@ function countAfterCollapse(normalized) {
   let total = 0
   for (const [domain, records] of byDomain) {
     const titled = records.filter((r) => recordLabel(domain, r.data) !== 'Untitled record')
-    total += collapseDuplicateRecords(domain, titled).length
+    total += summarizeForDisplay(domain, titled, (r) => r.data, IDENTITY_FIELDS[domain], DATE_FIELDS[domain]).length
   }
   return total
 }
@@ -484,8 +484,9 @@ function ShlImport() {
           <summary>
             {importSummary.rawTotal.toLocaleString()} FHIR resources came in as {importSummary.recordTotal.toLocaleString()} records
             {importSummary.afterCollapse < importSummary.recordTotal && (
-              <> &mdash; about {(importSummary.recordTotal - importSummary.afterCollapse).toLocaleString()} look like exact
-                duplicates of another record (collapsed on your Dashboard; every copy is still in Clinical view)</>
+              <> &mdash; your Dashboard will show about {importSummary.afterCollapse.toLocaleString()} of those
+                (exact duplicates merged, and things reaffirmed at nearly every visit -- an ongoing condition, a
+                tobacco-use status -- condensed down to the latest one). Every instance is still in Clinical view</>
             )}
             . What came in, by type:
           </summary>
