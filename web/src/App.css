@@ -438,6 +438,20 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+/* A display-only domain grouped by provider (encounters): one subsection
+   per person, each with its own run of cards sorted by date. */
+.person-group {
+  margin-bottom: 20px;
+}
+
+.person-group-heading {
+  font-size: 15px;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-h);
+}
+
 .record-summary {
   font-size: 14px;
   margin: 0 0 10px;

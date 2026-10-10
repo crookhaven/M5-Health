@@ -114,6 +114,38 @@ function DisplayOnlyCard({ domain, record }) {
   )
 }
 
+// Within a display-only domain, group cards under the person they're with
+// (an encounter's provider) when seeing everything tied to that one person
+// together -- sorted by when it happened -- is more useful than a single
+// list sorted by date that mixes every provider together.
+const GROUP_BY_PERSON = { encounters: 'provider' }
+
+function groupByPerson(domain, records) {
+  const field = GROUP_BY_PERSON[domain]
+  if (!field) return null
+
+  const groups = new Map()
+  const none = []
+  for (const record of records) {
+    const name = record.data[field]
+    if (!name) {
+      none.push(record)
+      continue
+    }
+    if (!groups.has(name)) groups.set(name, [])
+    groups.get(name).push(record)
+  }
+
+  const sections = [...groups.entries()].map(([name, recs]) => ({
+    name,
+    records: sortByDateDesc(recs),
+  }))
+  // Most recently seen provider first.
+  sections.sort((a, b) => (b.records[0].data.date ?? '').localeCompare(a.records[0].data.date ?? ''))
+  if (none.length) sections.push({ name: null, records: sortByDateDesc(none) })
+  return sections
+}
+
 function SectionHeading({ domain }) {
   return (
     <>
@@ -185,14 +217,28 @@ export default function Dashboard({ sourceRecords, assertions }) {
         }
 
         if (isDisplayOnly(domain)) {
+          const personGroups = groupByPerson(domain, deduped)
           return (
             <section key={domain}>
               <SectionHeading domain={domain} />
-              <div className="record-grid record-grid-wide">
-                {sortByDateDesc(deduped).map((record) => (
-                  <DisplayOnlyCard key={record.id} domain={domain} record={record} />
-                ))}
-              </div>
+              {personGroups ? (
+                personGroups.map((group) => (
+                  <div key={group.name ?? '__none'} className="person-group">
+                    <h3 className="person-group-heading">{group.name ?? 'No provider listed'}</h3>
+                    <div className="record-grid record-grid-wide">
+                      {group.records.map((record) => (
+                        <DisplayOnlyCard key={record.id} domain={domain} record={record} />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="record-grid record-grid-wide">
+                  {sortByDateDesc(deduped).map((record) => (
+                    <DisplayOnlyCard key={record.id} domain={domain} record={record} />
+                  ))}
+                </div>
+              )}
             </section>
           )
         }
