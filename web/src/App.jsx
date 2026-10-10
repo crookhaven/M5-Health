@@ -32,11 +32,37 @@ const DATA_VIEWS = [
   { key: 'todo', label: 'What to do' },
 ]
 
+const ALL_RAW_KEY = 'all'
+
+// The un-scored 4th option next to Clinical/IPS/Claims: every record from
+// every data set, exactly as imported, with none of My health's dedup or
+// grouping applied. Clinical view already does this for the clinical
+// domains (which cover everything IPS draws from) and ClaimsPanel already
+// does it for claims, so this is just the two side by side -- the point is
+// to show the real scale and duplication of what actually came in.
+function AllRawView({ sourceRecords, assertions }) {
+  return (
+    <div className="all-raw-view">
+      <p className="section-help">
+        Every record from every data set -- all clinical domains (which
+        covers what IPS draws from too), plus insurance claims -- exactly as
+        imported. Nothing merged, grouped, or filtered out. This is the real
+        scale and duplication of what came in; see My health for the cleaned-
+        up summary.
+      </p>
+      <ClinicalView sourceRecords={sourceRecords} assertions={assertions} />
+      <ClaimsPanel />
+    </div>
+  )
+}
+
 // One data set (Clinical, IPS or Claims) with the same three screens each:
-// see the data, see its PIQI score, and see what can be done about failures.
+// see the data, see its PIQI score, and see what can be done about
+// failures. A 4th, un-scored "All (raw)" option sits alongside them.
 function DataArea({ sourceRecords, assertions }) {
   const [dataset, setDataset] = useState('clinical')
   const [view, setView] = useState('view')
+  const isAllRaw = dataset === ALL_RAW_KEY
 
   return (
     <div className="data-area">
@@ -52,30 +78,41 @@ function DataArea({ sourceRecords, assertions }) {
             {DATASETS[key].label}
           </button>
         ))}
+        <button
+          type="button"
+          aria-pressed={isAllRaw}
+          className={isAllRaw ? 'active' : ''}
+          onClick={() => setDataset(ALL_RAW_KEY)}
+        >
+          All (raw)
+        </button>
       </div>
-      <div className="data-tabs" role="tablist" aria-label={`${DATASETS[dataset].label} screens`}>
-        {DATA_VIEWS.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            role="tab"
-            aria-selected={view === v.key}
-            className={view === v.key ? 'active' : ''}
-            onClick={() => setView(v.key)}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-      {view === 'view' && dataset === 'clinical' && (
+      {!isAllRaw && (
+        <div className="data-tabs" role="tablist" aria-label={`${DATASETS[dataset].label} screens`}>
+          {DATA_VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              role="tab"
+              aria-selected={view === v.key}
+              className={view === v.key ? 'active' : ''}
+              onClick={() => setView(v.key)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {isAllRaw && <AllRawView sourceRecords={sourceRecords} assertions={assertions} />}
+      {!isAllRaw && view === 'view' && dataset === 'clinical' && (
         <Dashboard sourceRecords={sourceRecords} assertions={assertions} />
       )}
-      {view === 'view' && dataset === 'ips' && (
+      {!isAllRaw && view === 'view' && dataset === 'ips' && (
         <IpsView sourceRecords={sourceRecords} assertions={assertions} />
       )}
-      {view === 'view' && dataset === 'claims' && <ClaimsPanel />}
-      {view === 'score' && <PiqiResults key={dataset} dataset={dataset} />}
-      {view === 'todo' && <WhatToDo key={dataset} dataset={dataset} />}
+      {!isAllRaw && view === 'view' && dataset === 'claims' && <ClaimsPanel />}
+      {!isAllRaw && view === 'score' && <PiqiResults key={dataset} dataset={dataset} />}
+      {!isAllRaw && view === 'todo' && <WhatToDo key={dataset} dataset={dataset} />}
     </div>
   )
 }
