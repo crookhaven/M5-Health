@@ -188,6 +188,10 @@ export default function ClinicalView({ sourceRecords, assertions }) {
 
   return (
     <div className="clinical-view">
+      <p className="section-help">
+        Every record exactly as it came in -- nothing merged or grouped -- so
+        you can compare it against your My health summary.
+      </p>
       <SpecialtyFilter records={sourceRecords} value={specialty} onChange={setSpecialty} />
       <nav className="clinical-index" aria-label="Sections">
         {present.map((domain) => (

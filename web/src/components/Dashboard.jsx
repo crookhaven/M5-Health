@@ -155,16 +155,47 @@ function SectionHeading({ domain }) {
   )
 }
 
-// The patient-facing view: plain-language cards. The provider-facing
-// equivalent is ClinicalView.
-export default function Dashboard({ sourceRecords, assertions }) {
-  const [specialty, setSpecialty] = useState('all')
-  const visible = filterBySpecialty(sourceRecords, specialty)
+// Drops untitled records, then summarizes what's left -- exact duplicates
+// collapsed everywhere, and for domains where the same fact gets reaffirmed
+// at nearly every visit (a chronic condition, a tobacco-use status, a known
+// allergy), every instance grouped down to the most recent one. This is the
+// one place that decides what the summary actually shows, used both to
+// render each section and to count what's on screen (so the specialty
+// badges don't quote the raw, pre-summary record count).
+function summarizedByDomain(records, assertions) {
   const byDomain = {}
-  for (const record of visible) {
+  for (const record of records) {
     if (!byDomain[record.domain]) byDomain[record.domain] = []
     byDomain[record.domain].push(record)
   }
+  const result = {}
+  for (const domain of Object.keys(byDomain)) {
+    const titled = byDomain[domain].filter(
+      (record) => recordLabel(domain, effectiveData(record, assertions).merged) !== 'Untitled record',
+    )
+    result[domain] = summarizeForDisplay(
+      domain,
+      titled,
+      (record) => effectiveData(record, assertions).merged,
+      IDENTITY_FIELDS[domain],
+      DATE_FIELDS[domain],
+    )
+  }
+  return result
+}
+
+function summarizedTotal(records, assertions) {
+  const byDomain = summarizedByDomain(records, assertions)
+  return Object.values(byDomain).reduce((total, recs) => total + recs.length, 0)
+}
+
+// The patient-facing view: plain-language cards, grouped and summarized down
+// to what's currently true. The provider-facing equivalent, with every
+// record exactly as imported for comparison, is Clinical view.
+export default function Dashboard({ sourceRecords, assertions }) {
+  const [specialty, setSpecialty] = useState('all')
+  const visible = filterBySpecialty(sourceRecords, specialty)
+  const byDomain = summarizedByDomain(visible, assertions)
 
   if (sourceRecords.length === 0) {
     return (
@@ -177,30 +208,19 @@ export default function Dashboard({ sourceRecords, assertions }) {
 
   return (
     <div className="dashboard">
-      <SpecialtyFilter records={sourceRecords} value={specialty} onChange={setSpecialty} />
+      <p className="section-help">
+        Your summary: duplicates merged, and anything reaffirmed at nearly
+        every visit shown as just its most recent entry. For every record
+        exactly as it came in, see Clinical view.
+      </p>
+      <SpecialtyFilter
+        records={sourceRecords}
+        value={specialty}
+        onChange={setSpecialty}
+        countFn={(recs) => summarizedTotal(recs, assertions)}
+      />
       {DOMAIN_ORDER.map((domain) => {
-        const records = byDomain[domain] ?? []
-        if (records.length === 0) return null
-
-        // Drop records with nothing to identify them by (an "Untitled
-        // record" tells the patient nothing), then summarize what's left --
-        // exact duplicates collapsed everywhere, and for domains where the
-        // same fact gets reaffirmed at nearly every visit (a chronic
-        // condition, a tobacco-use status, a known allergy), every instance
-        // grouped down to the most recent one. This applies across every
-        // domain -- Coverage and the display-only ones (Care Team,
-        // Encounters, Clinical Notes...) go through the same filter as the
-        // PIQI clinical domains.
-        const titled = records.filter(
-          (record) => recordLabel(domain, effectiveData(record, assertions).merged) !== 'Untitled record',
-        )
-        const deduped = summarizeForDisplay(
-          domain,
-          titled,
-          (record) => effectiveData(record, assertions).merged,
-          IDENTITY_FIELDS[domain],
-          DATE_FIELDS[domain],
-        )
+        const deduped = byDomain[domain] ?? []
         if (deduped.length === 0) return null
 
         if (domain === 'coverage') {
