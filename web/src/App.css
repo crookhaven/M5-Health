@@ -1002,6 +1002,12 @@ table {
   border-bottom: 1px solid var(--border, #d0d5dd);
   padding-bottom: 0.75rem;
 }
+.all-raw-view .clinical-view {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--border);
+}
+
 .table-scroll {
   overflow-x: auto;
 }
