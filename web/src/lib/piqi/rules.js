@@ -288,7 +288,11 @@ export function fieldLabel(field) {
 // shown under another field (clinical status vs. condition status, procedure
 // date vs. performed date) is not repeated.
 export function displayFields(domain, data) {
-  const skip = domain === 'demographics' ? ['firstName', 'lastName'] : [IDENTITY_FIELDS[domain]]
+  // The patient identifier is an internal source-system id (an MRN, a payer
+  // member id) that means nothing to the patient reading their own record,
+  // so it is tracked for completeness but not shown on the card.
+  const skip =
+    domain === 'demographics' ? ['firstName', 'lastName', 'patientIdentifier'] : [IDENTITY_FIELDS[domain]]
   const required = (REQUIRED_FIELDS[domain] ?? []).filter((f) => !skip.includes(f))
   const shown = required.map((field) => ({ field, required: true }))
   const seen = new Set(required.map((f) => displayText(data[f])).filter(Boolean))

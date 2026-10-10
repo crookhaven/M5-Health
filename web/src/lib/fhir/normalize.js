@@ -54,15 +54,43 @@ function usCoreCategoryConcept(resource, extensionName) {
   })
 }
 
-// US Core birth sex is a fixed-code extension (M/F/UNK), distinct from the
-// base FHIR `gender` administrative field -- prefer it when present.
+// US Core birth sex is a fixed-code extension (M/F/UNK) from its own code
+// system -- not the base FHIR `gender` administrative-gender system, whose
+// codes are the lowercase words male/female/other/unknown. Tagging M/F/UNK
+// as administrative-gender (as this used to do) produces a coding that is
+// invalid under either system. A USCDI-aligned PIQI Gateway audit also wants
+// a SNOMED CT code specifically ("Patient Birth Sex code is not in SNOMED
+// CT" for a US Core M/F value with no SNOMED alongside it), so add the
+// standard crosswalk (M -> 248153007, F -> 248152002) as a second coding on
+// the same concept, the same way a multi-system concept like an allergy's
+// substance already carries several parallel codings.
+const US_CORE_BIRTHSEX_SYSTEM = 'http://hl7.org/fhir/us/core/CodeSystem/birthsex'
+const BIRTHSEX_SNOMED = { M: { code: '248153007', display: 'Male' }, F: { code: '248152002', display: 'Female' } }
+
 function usCoreBirthSex(resource) {
   const code = resource.extension?.find((e) => e.url === `${US_CORE_EXTENSION_BASE}birthsex`)?.valueCode
   if (!code) return undefined
   const display = { M: 'Male', F: 'Female', UNK: 'Unknown' }[code] ?? code
+  const snomed = BIRTHSEX_SNOMED[code]
   return codeableConcept({
     text: display,
-    codings: [coding({ code, display, system: 'http://hl7.org/fhir/administrative-gender' })],
+    codings: [
+      coding({ code, display, system: US_CORE_BIRTHSEX_SYSTEM }),
+      ...(snomed ? [coding({ code: snomed.code, display: snomed.display, system: 'http://snomed.info/sct' })] : []),
+    ],
+  })
+}
+
+// Base FHIR `gender` is itself a coded field (AdministrativeGender:
+// male | female | other | unknown), so it should carry a coding, not just
+// text -- dropping the code is what makes a Gateway audit call it an invalid
+// concept when there is no US Core birthsex extension to prefer instead
+// (seen auditing an IPS bundle, which has no US Core extensions).
+function administrativeGenderConcept(genderCode) {
+  if (!genderCode) return undefined
+  return codeableConcept({
+    text: genderCode,
+    codings: [coding({ code: genderCode, system: 'http://hl7.org/fhir/administrative-gender' })],
   })
 }
 
@@ -79,7 +107,7 @@ function normalizePatient(resource) {
       middleName: name.middleName,
       lastName: name.lastName,
       birthDate: resource.birthDate,
-      birthSex: usCoreBirthSex(resource) ?? ccFromText(resource.gender),
+      birthSex: usCoreBirthSex(resource) ?? administrativeGenderConcept(resource.gender),
       race: usCoreCategoryConcept(resource, 'race'),
       ethnicity: usCoreCategoryConcept(resource, 'ethnicity'),
       deceased:
@@ -256,27 +284,33 @@ function normalizeReferenceRange(resource) {
   })
 }
 
+// Panel-style lab Observations (a CBC or metabolic panel, a Gram stain with
+// several reported organisms) carry their real per-analyte results in
+// `component`, not on the resource itself -- the same pattern already
+// handled for vitalSigns/healthAssessments below. Without this, a panel
+// collapses into one record under its own panel-level code with no result
+// value, and every analyte it actually reported is silently dropped.
 function normalizeLabResult(resource, ctx) {
   const performer = joinNames(resource.performer, ctx)
-  return {
+  return observationValueSources(resource).map(({ code, valueSource }) => ({
     domain: 'labResults',
     data: {
       performingSite: ccFromText(performer),
       bodySite: conceptText(resource.bodySite),
       order: ccFromConcept(resource.basedOn?.[0]?.display ? { text: resource.basedOn[0].display } : undefined),
-      test: ccFromConcept(resource.code),
-      resultUnit: unitConcept(resource.valueQuantity),
-      resultValue: normalizeObservationValue(resource),
+      test: ccFromConcept(code),
+      resultUnit: unitConcept(valueSource.valueQuantity),
+      resultValue: normalizeObservationValue(valueSource),
       interpretation: ccFromConcept(resource.interpretation?.[0]),
       specimenType: ccFromConcept(resource.specimen?.display ? { text: resource.specimen.display } : undefined),
       resultStatus: ccFromText(resource.status),
       performedDateTime: resource.effectiveDateTime,
       issuedDateTime: resource.issued,
-      referenceRange: normalizeReferenceRange(resource),
+      referenceRange: normalizeReferenceRange(valueSource),
       orderDate: resource.issued,
       labCategory: ccFromConcept(resource.category?.[0]),
     },
-  }
+  }))
 }
 
 function normalizeVitalSign(resource, ctx) {
@@ -357,7 +391,10 @@ function normalizeProcedure(resource, ctx) {
     data: {
       procedureDateTime: dateTime,
       procedure: ccFromConcept(resource.code),
-      procedureReason: ccFromConcept(resource.reasonCode?.[0]),
+      // The reason is just as often a reference to a Condition as an inline
+      // code (seen in real IPS samples) -- Encounter and ServiceRequest
+      // already fall back to reasonReference, Procedure did not.
+      procedureReason: ccFromConcept(resource.reasonCode?.[0]) ?? ccFromText(referenceName(resource.reasonReference?.[0], ctx)),
       procedureStatus: ccFromText(resource.status),
       procedurePerformedDate: dateTime,
       endDateTime: resource.performedPeriod?.end,
@@ -528,9 +565,24 @@ function normalizeExplanationOfBenefit(resource, ctx) {
 const MAX_TEXT_CHARS = 20000
 const PERSON_TYPES = new Set(['Practitioner', 'Person', 'RelatedPerson', 'Patient'])
 
+// Free-text fields (a reference's `display`, a CodeableConcept's `text`) are
+// sometimes handed to us pre-escaped by the source system -- "CVS Health
+// &amp; MinuteClinic" instead of "CVS Health & MinuteClinic" -- so they get
+// the same entity decoding as narrative HTML before being shown.
+function decodeHtmlEntities(text) {
+  if (typeof text !== 'string') return text
+  return text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 function conceptText(concept) {
   if (!concept) return undefined
-  return concept.text ?? concept.coding?.find((c) => c.display)?.display ?? concept.coding?.[0]?.code
+  return decodeHtmlEntities(concept.text ?? concept.coding?.find((c) => c.display)?.display ?? concept.coding?.[0]?.code)
 }
 
 function personName(resource) {
@@ -544,15 +596,15 @@ function personName(resource) {
 function referenceName(ref, ctx) {
   const target = resolveReference(ref, ctx)
   if (target) {
-    if (target.resourceType === 'Organization') return target.name ?? ref.display
-    if (PERSON_TYPES.has(target.resourceType)) return personName(target) ?? ref.display
+    if (target.resourceType === 'Organization') return target.name ?? decodeHtmlEntities(ref.display)
+    if (PERSON_TYPES.has(target.resourceType)) return personName(target) ?? decodeHtmlEntities(ref.display)
     if (target.resourceType === 'PractitionerRole') {
       return referenceName(target.practitioner, ctx) ?? referenceName(target.organization, ctx)
     }
     if (typeof target.name === 'string') return target.name // Location, CareTeam, Device...
     if (target.code) return conceptText(target.code)
   }
-  return ref?.display
+  return decodeHtmlEntities(ref?.display)
 }
 
 function joinNames(refs, ctx) {
@@ -563,18 +615,14 @@ function joinNames(refs, ctx) {
 // Markup whitespace is not meaningful, so it is collapsed first; line breaks
 // come from block tags and table cells are separated by a tab.
 function htmlToText(html) {
-  return html
-    .replace(/\s+/g, ' ')
-    .replace(/<\/(td|th)>/gi, '\t')
-    .replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d|\/paragraph|\/item)[^>]*>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/ *\t */g, '\t')
+  return decodeHtmlEntities(
+    html
+      .replace(/\s+/g, ' ')
+      .replace(/<\/(td|th)>/gi, '\t')
+      .replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d|\/paragraph|\/item)[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/ *\t */g, '\t'),
+  )
     .split('\n')
     .map((line) => line.trim())
     .join('\n')

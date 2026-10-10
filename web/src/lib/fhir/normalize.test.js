@@ -25,6 +25,12 @@ describe('normalizeFhirBundle', () => {
     expect(result.data.lastName).toBe('Rivera')
     expect(result.data.birthDate).toBe('1985-04-12')
     expect(displayText(result.data.birthSex)).toBe('female')
+    // Base FHIR `gender` is a coded field; keep the code even without a US
+    // Core birthsex extension, so a Gateway audit sees a valid concept
+    // instead of bare text (seen auditing an IPS bundle, which has none).
+    expect(result.data.birthSex.codings).toEqual([
+      { code: 'female', display: undefined, system: 'http://hl7.org/fhir/administrative-gender' },
+    ])
   })
 
   it('parses US Core race, ethnicity, and birth sex extensions', () => {
@@ -74,6 +80,13 @@ describe('normalizeFhirBundle', () => {
     expect(displayText(result.data.race)).toBe('White')
     expect(displayText(result.data.ethnicity)).toBe('Not Hispanic or Latino')
     expect(displayText(result.data.birthSex)).toBe('Female')
+    // US Core's own code system (not administrative-gender, whose codes are
+    // the words male/female), plus the SNOMED CT crosswalk a USCDI-aligned
+    // Gateway audit checks for.
+    expect(result.data.birthSex.codings).toEqual([
+      { code: 'F', display: 'Female', system: 'http://hl7.org/fhir/us/core/CodeSystem/birthsex' },
+      { code: '248152002', display: 'Female', system: 'http://snomed.info/sct' },
+    ])
   })
 
   it('maps a MedicationRequest to medications with typed attributes', () => {
@@ -150,6 +163,31 @@ describe('normalizeFhirBundle', () => {
     expect(social[0].domain).toBe('healthAssessments')
   })
 
+  it('expands a lab panel Observation into one labResult per component', () => {
+    // A CBC-style panel: no value of its own, each analyte in `component`.
+    // Dropping this expansion collapses the whole panel into one record
+    // under the panel's own code with no result value -- confirmed missing
+    // against a real-world panel Observation (a Gram stain report) that
+    // otherwise silently lost every one of its reported organisms.
+    const bundle = {
+      resourceType: 'Observation',
+      category: [{ coding: [{ code: 'laboratory' }] }],
+      code: { text: 'CBC panel' },
+      effectiveDateTime: '2026-01-10',
+      component: [
+        { code: { text: 'Leukocytes' }, valueQuantity: { value: 6.5, unit: '10*3/uL' } },
+        { code: { text: 'Hemoglobin' }, valueQuantity: { value: 14.2, unit: 'g/dL' } },
+      ],
+    }
+    const results = normalizeFhirBundle(bundle)
+    expect(results).toHaveLength(2)
+    expect(results.every((r) => r.domain === 'labResults')).toBe(true)
+    expect(displayText(results[0].data.test)).toBe('Leukocytes')
+    expect(displayText(results[0].data.resultValue)).toBe('6.5')
+    expect(displayText(results[1].data.test)).toBe('Hemoglobin')
+    expect(displayText(results[1].data.resultValue)).toBe('14.2')
+  })
+
   it('skips Observations outside the known categories that carry no value', () => {
     const bundle = {
       resourceType: 'Bundle',
@@ -210,6 +248,29 @@ describe('normalizeFhirBundle', () => {
     expect(result.domain).toBe('procedures')
     expect(displayText(result.data.procedure)).toBe('Appendectomy')
     expect(result.data.procedureDateTime).toBe('2019-03-02')
+  })
+
+  it('falls back to reasonReference for a Procedure reason with no inline code', () => {
+    const bundle = {
+      resourceType: 'Bundle',
+      entry: [
+        {
+          fullUrl: 'urn:uuid:cond-1',
+          resource: { resourceType: 'Condition', id: 'cond-1', code: { text: 'Acute viral pharyngitis' } },
+        },
+        {
+          resource: {
+            resourceType: 'Procedure',
+            status: 'completed',
+            code: { text: 'Throat culture' },
+            performedDateTime: '2019-03-02',
+            reasonReference: [{ reference: 'urn:uuid:cond-1', display: 'Acute viral pharyngitis (disorder)' }],
+          },
+        },
+      ],
+    }
+    const result = normalizeFhirBundle(bundle).find((r) => r.domain === 'procedures')
+    expect(displayText(result.data.procedureReason)).toBe('Acute viral pharyngitis')
   })
 
   it('normalizes the full sample bundle into the expected domain counts', () => {
