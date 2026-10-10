@@ -6,6 +6,16 @@
 
 M⁵ Health is an open-source personal and family health app built to explore the CMS Health Tech Ecosystem in practice. It brings health records, coverage information, medications, and other health data into one consumer-controlled experience using modern interoperability standards such as FHIR and SMART.
 
+## Connectathon testing
+
+M5 Health is being built and tested in step with a series of HL7/CMS interoperability events, each one exercising a different part of the app against real external systems rather than just its own test suite.
+
+**September 2026 -- HL7 Connectathon 43.** Demonstrated pulling in synthetic patient data, displaying it in the app, and running it through PIQI analysis against both the HL7 PIQI Clinical Data Model and the International Patient Summary (IPS) profile. Testing against the live Connectathon PIQI Gateway surfaced, and led to fixes for, two real data-normalization bugs.
+
+**October 5, 2026 -- CMS HTE Kill the Clipboard (KTC), July GA requirements.** Tested interoperability with other organizations against the CMS Health Tech Ecosystem's Kill the Clipboard July general-availability requirements. This round added the functionality those requirements called for: SMART Health Link import fixes (direct-file links, compression, content-type parameters), new imaging/clinical-notes/referrals data, additional synthetic patient data, and plan-comparison de-duplication.
+
+**November 2026 (planned) -- SMART Health Check-in connectathon, Nov 3.** Building a standalone test wallet (see the app's Connectathon tab, or [`web/public/test-wallet/`](web/public/test-wallet/)) for the "Kill the Clipboard" SMART Health Check-in use case: a Wallet tab that answers check-in requests, and a Verifier tab that sends them (including to itself). Scenario coverage so far: demographics/problems/medications; any-us-core (decline-all, no-selector, unknown-selector); large-response with a narrowed family history (~3.2 MB synthetic); form-by-reference and versioned-canonical forms; physician forms with conditional and repeating questions; opt-in shared artifacts; and best-effort prefilled forms. Not yet supported: SMART Health Cards (needs card signing), cross-device/in-person handoff, and write-back (an EHR-side role, not a wallet's).
+
 ## Running the app
 
 A working implementation of the MVP below lives in [`web/`](web/) -- a
