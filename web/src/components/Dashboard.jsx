@@ -9,11 +9,11 @@ import {
   displayOnlyFields,
   sortByDateDesc,
 } from '../lib/displayOnly'
-import { displayFields, fieldLabel, recordLabel } from '../lib/piqi/rules'
+import { displayFields, fieldLabel, recordLabel, IDENTITY_FIELDS, DATE_FIELDS } from '../lib/piqi/rules'
 import { effectiveData, timelinessBucketFor } from '../lib/piqi/engine'
 import { displayText } from '../lib/piqi/attributeTypes'
 import { sourceLabel } from '../lib/sourceLabels'
-import { collapseDuplicateRecords } from '../lib/dedup'
+import { summarizeForDisplay } from '../lib/dedup'
 import CoverageScreen from './CoverageScreen'
 
 const TIMELINESS_LABELS = {
@@ -27,6 +27,7 @@ function RecordCard({ domain, record, assertions }) {
   const { merged, assertedFields, confirmed } = effectiveData(record, assertions)
   const fields = displayFields(domain, merged)
   const bucketLabel = TIMELINESS_LABELS[timelinessBucketFor(domain, record, assertions)]
+  const recurrence = record._recurrence
 
   return (
     <div className="record-card">
@@ -34,6 +35,12 @@ function RecordCard({ domain, record, assertions }) {
         <h3>{recordLabel(domain, merged)}</h3>
         {bucketLabel && <span className="badge">{bucketLabel}</span>}
       </div>
+      {recurrence && recurrence.count > 1 && (
+        <p className="record-recurrence">
+          Showing the most recent of {recurrence.count} times this was recorded
+          {recurrence.firstDate && <> &middot; first noted {displayDate(recurrence.firstDate)}</>}
+        </p>
+      )}
       <dl className="record-fields">
         {fields.map(({ field }) => {
           const text = displayText(merged[field])
@@ -144,17 +151,24 @@ export default function Dashboard({ sourceRecords, assertions }) {
         if (records.length === 0) return null
 
         // Drop records with nothing to identify them by (an "Untitled
-        // record" tells the patient nothing), then collapse records that
-        // are exact duplicates of each other -- a common side effect of
-        // importing from a source that aggregates several provider/payer
-        // systems, where the same fact is pulled in more than once. This
-        // applies to every domain -- Coverage and the display-only ones
-        // (Care Team, Encounters, Clinical Notes...) are just as prone to
-        // it as the PIQI clinical domains.
+        // record" tells the patient nothing), then summarize what's left --
+        // exact duplicates collapsed everywhere, and for domains where the
+        // same fact gets reaffirmed at nearly every visit (a chronic
+        // condition, a tobacco-use status, a known allergy), every instance
+        // grouped down to the most recent one. This applies across every
+        // domain -- Coverage and the display-only ones (Care Team,
+        // Encounters, Clinical Notes...) go through the same filter as the
+        // PIQI clinical domains.
         const titled = records.filter(
           (record) => recordLabel(domain, effectiveData(record, assertions).merged) !== 'Untitled record',
         )
-        const deduped = collapseDuplicateRecords(domain, titled)
+        const deduped = summarizeForDisplay(
+          domain,
+          titled,
+          (record) => effectiveData(record, assertions).merged,
+          IDENTITY_FIELDS[domain],
+          DATE_FIELDS[domain],
+        )
         if (deduped.length === 0) return null
 
         if (domain === 'coverage') {
