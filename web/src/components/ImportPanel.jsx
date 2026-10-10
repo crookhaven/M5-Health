@@ -5,11 +5,42 @@ import { normalizeFhirBundle } from '../lib/fhir/normalize'
 import { extractClaims } from '../lib/claims/extract'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
 import { isPackageOnlyLink } from '../lib/shl/packageFile'
-import { REQUIRED_FIELDS, FIELD_LABELS } from '../lib/piqi/rules'
+import { REQUIRED_FIELDS, FIELD_LABELS, recordLabel } from '../lib/piqi/rules'
 import { wrapAssertionValue } from '../lib/piqi/engine'
 import { DOMAINS } from '../lib/domains'
+import { collapseDuplicateRecords } from '../lib/dedup'
 import samplePatient from '../data/sample_fhir_bundle.json'
 import samplePlan from '../data/sample_plan_data.json'
+
+// How many raw FHIR resources actually came in, and how much of that was
+// reducible noise -- useful when a source (an aggregator pulling from
+// several provider/payer systems, say) hands back the same facts many
+// times over. Counts only; the raw bundle itself is not kept around.
+function tallyResourceTypes(bundles) {
+  const counts = new Map()
+  for (const bundle of bundles) {
+    for (const entry of bundle?.entry ?? []) {
+      const type = entry.resource?.resourceType
+      if (!type) continue
+      counts.set(type, (counts.get(type) ?? 0) + 1)
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])
+}
+
+function countAfterCollapse(normalized) {
+  const byDomain = new Map()
+  for (const record of normalized) {
+    if (!byDomain.has(record.domain)) byDomain.set(record.domain, [])
+    byDomain.get(record.domain).push(record)
+  }
+  let total = 0
+  for (const [domain, records] of byDomain) {
+    const titled = records.filter((r) => recordLabel(domain, r.data) !== 'Untitled record')
+    total += collapseDuplicateRecords(domain, titled).length
+  }
+  return total
+}
 
 const MAX_STORED_PDF_BYTES = 500 * 1024
 
@@ -318,11 +349,13 @@ function ShlImport() {
   const [status, setStatus] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [importSummary, setImportSummary] = useState(null)
 
   async function handleRetrieve() {
     setBusy(true)
     setError(null)
     setStatus(null)
+    setImportSummary(null)
     try {
       const { retrieveShl, extractFhirBundles } = await import('../lib/shl/retrieve')
       const payload = parseShlUri(url)
@@ -348,6 +381,12 @@ function ShlImport() {
       )
       addRecords(records)
       setStatus(`Retrieved and imported ${records.length} records.`)
+      setImportSummary({
+        rawTally: tallyResourceTypes(bundles),
+        rawTotal: bundles.reduce((n, b) => n + (b?.entry?.length ?? 0), 0),
+        recordTotal: records.length,
+        afterCollapse: countAfterCollapse(normalized),
+      })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -440,6 +479,25 @@ function ShlImport() {
         <input type="file" accept="application/json,.json" onChange={handlePackageFile} disabled={busy} />
       </label>
       {status && <p className="import-message">{status}</p>}
+      {importSummary && (
+        <details className="import-summary">
+          <summary>
+            {importSummary.rawTotal.toLocaleString()} FHIR resources came in as {importSummary.recordTotal.toLocaleString()} records
+            {importSummary.afterCollapse < importSummary.recordTotal && (
+              <> &mdash; about {(importSummary.recordTotal - importSummary.afterCollapse).toLocaleString()} look like exact
+                duplicates of another record (collapsed on your Dashboard; every copy is still in Clinical view)</>
+            )}
+            . What came in, by type:
+          </summary>
+          <ul className="import-tally">
+            {importSummary.rawTally.map(([type, count]) => (
+              <li key={type}>
+                {type}: {count.toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {error && <p className="import-error">{error}</p>}
     </section>
   )
