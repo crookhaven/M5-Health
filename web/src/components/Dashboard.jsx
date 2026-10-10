@@ -13,6 +13,7 @@ import { displayFields, fieldLabel, recordLabel } from '../lib/piqi/rules'
 import { effectiveData, timelinessBucketFor } from '../lib/piqi/engine'
 import { displayText } from '../lib/piqi/attributeTypes'
 import { sourceLabel } from '../lib/sourceLabels'
+import { collapseDuplicateRecords } from '../lib/dedup'
 import CoverageScreen from './CoverageScreen'
 
 const TIMELINESS_LABELS = {
@@ -168,11 +169,22 @@ export default function Dashboard({ sourceRecords, assertions }) {
           )
         }
 
+        // Drop records with nothing to identify them by (an "Untitled
+        // record" tells the patient nothing), then collapse records that
+        // are exact duplicates of each other -- a common side effect of
+        // importing from a source that aggregates several provider/payer
+        // systems, where the same fact is pulled in more than once.
+        const titled = records.filter(
+          (record) => recordLabel(domain, effectiveData(record, assertions).merged) !== 'Untitled record',
+        )
+        const deduped = collapseDuplicateRecords(domain, titled)
+        if (deduped.length === 0) return null
+
         return (
           <section key={domain}>
             <SectionHeading domain={domain} />
             <div className="record-grid">
-              {records.map((record) => (
+              {deduped.map((record) => (
                 <RecordCard
                   key={record.id}
                   domain={domain}

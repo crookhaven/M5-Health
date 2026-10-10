@@ -565,9 +565,24 @@ function normalizeExplanationOfBenefit(resource, ctx) {
 const MAX_TEXT_CHARS = 20000
 const PERSON_TYPES = new Set(['Practitioner', 'Person', 'RelatedPerson', 'Patient'])
 
+// Free-text fields (a reference's `display`, a CodeableConcept's `text`) are
+// sometimes handed to us pre-escaped by the source system -- "CVS Health
+// &amp; MinuteClinic" instead of "CVS Health & MinuteClinic" -- so they get
+// the same entity decoding as narrative HTML before being shown.
+function decodeHtmlEntities(text) {
+  if (typeof text !== 'string') return text
+  return text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 function conceptText(concept) {
   if (!concept) return undefined
-  return concept.text ?? concept.coding?.find((c) => c.display)?.display ?? concept.coding?.[0]?.code
+  return decodeHtmlEntities(concept.text ?? concept.coding?.find((c) => c.display)?.display ?? concept.coding?.[0]?.code)
 }
 
 function personName(resource) {
@@ -581,15 +596,15 @@ function personName(resource) {
 function referenceName(ref, ctx) {
   const target = resolveReference(ref, ctx)
   if (target) {
-    if (target.resourceType === 'Organization') return target.name ?? ref.display
-    if (PERSON_TYPES.has(target.resourceType)) return personName(target) ?? ref.display
+    if (target.resourceType === 'Organization') return target.name ?? decodeHtmlEntities(ref.display)
+    if (PERSON_TYPES.has(target.resourceType)) return personName(target) ?? decodeHtmlEntities(ref.display)
     if (target.resourceType === 'PractitionerRole') {
       return referenceName(target.practitioner, ctx) ?? referenceName(target.organization, ctx)
     }
     if (typeof target.name === 'string') return target.name // Location, CareTeam, Device...
     if (target.code) return conceptText(target.code)
   }
-  return ref?.display
+  return decodeHtmlEntities(ref?.display)
 }
 
 function joinNames(refs, ctx) {
@@ -600,18 +615,14 @@ function joinNames(refs, ctx) {
 // Markup whitespace is not meaningful, so it is collapsed first; line breaks
 // come from block tags and table cells are separated by a tab.
 function htmlToText(html) {
-  return html
-    .replace(/\s+/g, ' ')
-    .replace(/<\/(td|th)>/gi, '\t')
-    .replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d|\/paragraph|\/item)[^>]*>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/ *\t */g, '\t')
+  return decodeHtmlEntities(
+    html
+      .replace(/\s+/g, ' ')
+      .replace(/<\/(td|th)>/gi, '\t')
+      .replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d|\/paragraph|\/item)[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/ *\t */g, '\t'),
+  )
     .split('\n')
     .map((line) => line.trim())
     .join('\n')
