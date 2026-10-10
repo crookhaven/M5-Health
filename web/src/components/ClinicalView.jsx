@@ -7,6 +7,8 @@ import { DOCUMENT_FIELDS, SUMMARY_FIELD, displayDate, displayOnlyFields, sortByD
 import { filterBySpecialty, specialtyOf, SPECIALTIES } from '../lib/specialty'
 import { sourceLabel } from '../lib/sourceLabels'
 import SpecialtyFilter from './SpecialtyFilter'
+import DateFilter from './DateFilter'
+import { ALL_DATES, filterByDate } from '../lib/dateFilter'
 
 const SYSTEM_NAMES = [
   [/snomed/i, 'SNOMED CT'],
@@ -173,12 +175,14 @@ function CoverageTable({ records }) {
 // Dashboard.
 export default function ClinicalView({ sourceRecords, assertions }) {
   const [specialty, setSpecialty] = useState('all')
+  const [dateFilter, setDateFilter] = useState(ALL_DATES)
 
   if (sourceRecords.length === 0) {
     return <div className="empty-state">No health information imported yet.</div>
   }
 
-  const visible = filterBySpecialty(sourceRecords, specialty)
+  const dateFiltered = filterByDate(sourceRecords, dateFilter)
+  const visible = filterBySpecialty(dateFiltered, specialty)
   const byDomain = {}
   for (const record of visible) {
     if (!byDomain[record.domain]) byDomain[record.domain] = []
@@ -190,9 +194,13 @@ export default function ClinicalView({ sourceRecords, assertions }) {
     <div className="clinical-view">
       <p className="section-help">
         Every record exactly as it came in -- nothing merged or grouped -- so
-        you can compare it against your My health summary.
+        you can compare it against your My health summary. Narrow to a year,
+        month or day with the date filter.
       </p>
-      <SpecialtyFilter records={sourceRecords} value={specialty} onChange={setSpecialty} />
+      <div className="filter-row">
+        <SpecialtyFilter records={dateFiltered} value={specialty} onChange={setSpecialty} />
+        <DateFilter records={sourceRecords} value={dateFilter} onChange={setDateFilter} />
+      </div>
       <nav className="clinical-index" aria-label="Sections">
         {present.map((domain) => (
           <a key={domain} href={`#clinical-${domain}`}>
