@@ -143,12 +143,26 @@ export default function Dashboard({ sourceRecords, assertions }) {
         const records = byDomain[domain] ?? []
         if (records.length === 0) return null
 
+        // Drop records with nothing to identify them by (an "Untitled
+        // record" tells the patient nothing), then collapse records that
+        // are exact duplicates of each other -- a common side effect of
+        // importing from a source that aggregates several provider/payer
+        // systems, where the same fact is pulled in more than once. This
+        // applies to every domain -- Coverage and the display-only ones
+        // (Care Team, Encounters, Clinical Notes...) are just as prone to
+        // it as the PIQI clinical domains.
+        const titled = records.filter(
+          (record) => recordLabel(domain, effectiveData(record, assertions).merged) !== 'Untitled record',
+        )
+        const deduped = collapseDuplicateRecords(domain, titled)
+        if (deduped.length === 0) return null
+
         if (domain === 'coverage') {
           return (
             <section key={domain}>
               <SectionHeading domain={domain} />
               <div className="coverage-list">
-                {records.map((record) => (
+                {deduped.map((record) => (
                   <CoverageScreen key={record.id} record={record} />
                 ))}
               </div>
@@ -161,24 +175,13 @@ export default function Dashboard({ sourceRecords, assertions }) {
             <section key={domain}>
               <SectionHeading domain={domain} />
               <div className="record-grid record-grid-wide">
-                {sortByDateDesc(records).map((record) => (
+                {sortByDateDesc(deduped).map((record) => (
                   <DisplayOnlyCard key={record.id} domain={domain} record={record} />
                 ))}
               </div>
             </section>
           )
         }
-
-        // Drop records with nothing to identify them by (an "Untitled
-        // record" tells the patient nothing), then collapse records that
-        // are exact duplicates of each other -- a common side effect of
-        // importing from a source that aggregates several provider/payer
-        // systems, where the same fact is pulled in more than once.
-        const titled = records.filter(
-          (record) => recordLabel(domain, effectiveData(record, assertions).merged) !== 'Untitled record',
-        )
-        const deduped = collapseDuplicateRecords(domain, titled)
-        if (deduped.length === 0) return null
 
         return (
           <section key={domain}>
