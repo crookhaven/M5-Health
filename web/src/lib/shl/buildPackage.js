@@ -14,7 +14,7 @@ export async function buildShlPackage(shareBundle, { label } = {}) {
     url: PACKAGE_URL,
     key,
     flag: 'L',
-    label: label ?? 'M5 Health export',
+    label: label ?? 'M5 Whole Health export',
     v: 1,
   }
   const shlUri = 'shlink:/' + stringToBase64Url(JSON.stringify(payload))

@@ -126,7 +126,7 @@ function AppContent() {
       <header className="app-header">
         <div className="app-header-title">
           <img src={logo} alt="" width="32" height="32" />
-          <h1>M5 Health</h1>
+          <h1>M5 Whole Health</h1>
         </div>
         <p>Your patient-controlled health data workspace</p>
       </header>

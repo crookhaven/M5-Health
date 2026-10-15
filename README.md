@@ -1,14 +1,14 @@
-# M5-Health
+# M5 Whole Health
 
 > \*\*Demo only.\*\* All patients, plans, and claims in this demo are synthetic. It contains no real protected health information (PHI), and you should not enter any. Plan details come from the public CMS Marketplace API for a made-up household. This is not medical, legal, or insurance advice, and it is not a HIPAA-covered service.
 
 
 
-M⁵ Health is an open-source personal and family health app built to explore the CMS Health Tech Ecosystem in practice. It brings health records, coverage information, medications, and other health data into one consumer-controlled experience using modern interoperability standards such as FHIR and SMART.
+M⁵ Whole Health is an open-source personal and family health app built to explore the CMS Health Tech Ecosystem in practice. It brings health records, coverage information, medications, and other health data into one consumer-controlled experience using modern interoperability standards such as FHIR and SMART.
 
 ## Connectathon testing
 
-M5 Health is being built and tested in step with a series of HL7/CMS interoperability events, each one exercising a different part of the app against real external systems rather than just its own test suite.
+M5 Whole Health is being built and tested in step with a series of HL7/CMS interoperability events, each one exercising a different part of the app against real external systems rather than just its own test suite.
 
 **September 2026 -- HL7 Connectathon 43.** Demonstrated pulling in synthetic patient data, displaying it in the app, and running it through PIQI analysis against both the HL7 PIQI Clinical Data Model and the International Patient Summary (IPS) profile. Testing against the live Connectathon PIQI Gateway surfaced, and led to fixes for, two real data-normalization bugs.
 
@@ -22,7 +22,7 @@ A working implementation of the MVP below lives in [`web/`](web/) -- a
 client-side React app with no backend. See [`web/README.md`](web/README.md)
 for setup instructions.
 
-# M5 Health - MVP
+# M5 Whole Health - MVP
 
 ## Purpose
 
@@ -233,7 +233,7 @@ Source records are immutable.
 
 # Feature 6: Data Readiness Scorecard (removed)
 
-The app's own Data Readiness Scorecard was removed. It was an M5 Health
+The app's own Data Readiness Scorecard was removed. It was an M5 Whole Health
 metric, not a PIQI score. Scores now come only from the PIQI Gateway and are
 shown on each data set's "PIQI score" screen.
 

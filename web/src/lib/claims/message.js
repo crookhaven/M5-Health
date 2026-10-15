@@ -64,7 +64,7 @@ export function buildClaimsPiqiMessage(claimsData) {
     if (records.length) patient[className] = records.map((r) => wireClaimsRecord(className, r))
   }
   return {
-    FormatID: 'M5 Health JSON',
+    FormatID: 'M5 Whole Health JSON',
     MessageId: crypto.randomUUID(),
     model: 'PAT_EOB_V1',
     patient,

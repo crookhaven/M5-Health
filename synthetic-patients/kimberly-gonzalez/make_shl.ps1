@@ -11,7 +11,7 @@
 # After pushing, run with -VerifyOnly to check the live file without re-encrypting.
 param(
   [string]$Bundle = (Join-Path $PSScriptRoot 'GPX-SYN-0000000279-0_enriched.json'),
-  [string]$FileUrl = 'https://raw.githubusercontent.com/crookhaven/M5-Health/main/synthetic-patients/shl/kimberly-gonzalez.jwe',
+  [string]$FileUrl = 'https://raw.githubusercontent.com/crookhaven/M5-WholeHealth/main/synthetic-patients/shl/kimberly-gonzalez.jwe',
   [string]$JweOut = (Join-Path $PSScriptRoot '..\shl\kimberly-gonzalez.jwe'),
   [string]$Label = 'Kimberly Gonzalez - synthetic test record',
   [string]$SecretFile = (Join-Path $PSScriptRoot 'shl-secret.json'),

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { WorkspaceProvider } from '../state/WorkspaceContext'
 import ImportPanel from './ImportPanel'
 
-const STORAGE_KEY = 'm5-health-workspace-v1'
+const STORAGE_KEY = 'm5-whole-health-workspace-v1'
 
 function workspaceState() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))

@@ -248,6 +248,6 @@ export function buildProviderNote(findings) {
     '',
     ...lines,
     '',
-    'These came from a data-quality check of my records in M5 Health. Please review and let me know what to correct.',
+    'These came from a data-quality check of my records in M5 Whole Health. Please review and let me know what to correct.',
   ].join('\n')
 }

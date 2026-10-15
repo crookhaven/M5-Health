@@ -25,6 +25,6 @@ describe('buildShlPackage', () => {
 
   it('defaults the label when none is given', async () => {
     const pkg = await buildShlPackage({ resourceType: 'Bundle', entry: [] })
-    expect(pkg.payload.label).toBe('M5 Health export')
+    expect(pkg.payload.label).toBe('M5 Whole Health export')
   })
 })

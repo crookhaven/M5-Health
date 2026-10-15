@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useReducer } from 'react'
-import { STORAGE_KEY, activeSlice, loadState, reducer } from './workspaceState'
+import { LEGACY_STORAGE_KEY, STORAGE_KEY, activeSlice, loadState, reducer } from './workspaceState'
 
 const WorkspaceContext = createContext(null)
 
 function readStored() {
   try {
-    return loadState(localStorage.getItem(STORAGE_KEY))
+    return loadState(localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY))
   } catch {
     return loadState(null)
   }
@@ -17,6 +17,7 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
     } catch {
       // Quota exceeded -- state still works this session, just won't persist.
     }

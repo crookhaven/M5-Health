@@ -8,19 +8,19 @@ export const DATASETS = {
     key: 'clinical',
     label: 'Clinical',
     rubricHint: 'a clinical rubric such as USCDI v3.1',
-    fileName: 'm5-health-piqi-message.json',
+    fileName: 'm5-whole-health-piqi-message.json',
   },
   ips: {
     key: 'ips',
     label: 'IPS',
     rubricHint: 'the IPS rubric',
-    fileName: 'm5-health-ips-piqi-message.json',
+    fileName: 'm5-whole-health-ips-piqi-message.json',
   },
   claims: {
     key: 'claims',
     label: 'Claims',
     rubricHint: 'the claims rubric',
-    fileName: 'm5-health-claims-piqi-message.json',
+    fileName: 'm5-whole-health-claims-piqi-message.json',
   },
 }
 

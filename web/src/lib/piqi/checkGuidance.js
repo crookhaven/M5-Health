@@ -163,6 +163,6 @@ export function buildCheckProviderNote(checks) {
     '',
     ...lines,
     '',
-    'These came from a PIQI data-quality audit of my records in M5 Health. Please review and let me know what to correct.',
+    'These came from a PIQI data-quality audit of my records in M5 Whole Health. Please review and let me know what to correct.',
   ].join('\n')
 }

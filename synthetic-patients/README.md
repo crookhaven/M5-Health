@@ -1,6 +1,6 @@
 # synthetic-patients
 
-Part of [M5-Health](../README.md). Synthetic FHIR R4 test patients. **All data is fictional**
+Part of [M5 Whole Health](../README.md). Synthetic FHIR R4 test patients. **All data is fictional**
 and every resource is tagged `HTEST` (test health data). No real PHI.
 
 Each patient is published three ways:
@@ -10,7 +10,7 @@ Each patient is published three ways:
    It is wiped from time to time; re-run the publish scripts to restore it.
 3. **SMART Health Link** (flag `U`, no passcode): the bundle encrypted as a compact JWE
    (`dir` / `A256GCM`, DEFLATE) in `shl/`, served from
-   `https://raw.githubusercontent.com/crookhaven/M5-Health/main/synthetic-patients/shl/<patient>.jwe`.
+   `https://raw.githubusercontent.com/crookhaven/M5-WholeHealth/main/synthetic-patients/shl/<patient>.jwe`.
    An EHR can discover the link with `GET DocumentReference?patient=<id>` on HAPI (the entry
    titled "SMART Health Link"). The link carries the key, so the `.jwe` files are safe to keep
    public; each patient's link and QR page (`shl-secret.json`, `shl.html`) are gitignored.
@@ -80,7 +80,7 @@ Example, for Maximus (from `synthetic-patients/`):
 ```powershell
 .\maximus-decimus-meridius\build_maximus.ps1
 .\kimberly-gonzalez\publish_to_hapi.ps1 -Bundle .\maximus-decimus-meridius\maximus-decimus-meridius.json -TransactionOut .\maximus-decimus-meridius\maximus_transaction.json
-.\kimberly-gonzalez\make_shl.ps1 -Bundle .\maximus-decimus-meridius\maximus-decimus-meridius.json -FileUrl https://raw.githubusercontent.com/crookhaven/M5-Health/main/synthetic-patients/shl/maximus-decimus-meridius.jwe -JweOut .\shl\maximus-decimus-meridius.jwe -Label "Maximus Decimus Meridius - synthetic test record" -SecretFile .\maximus-decimus-meridius\shl-secret.json -QrPage .\maximus-decimus-meridius\shl.html
+.\kimberly-gonzalez\make_shl.ps1 -Bundle .\maximus-decimus-meridius\maximus-decimus-meridius.json -FileUrl https://raw.githubusercontent.com/crookhaven/M5-WholeHealth/main/synthetic-patients/shl/maximus-decimus-meridius.jwe -JweOut .\shl\maximus-decimus-meridius.jwe -Label "Maximus Decimus Meridius - synthetic test record" -SecretFile .\maximus-decimus-meridius\shl-secret.json -QrPage .\maximus-decimus-meridius\shl.html
 .\kimberly-gonzalez\publish_shl_docref.ps1 -SecretFile .\maximus-decimus-meridius\shl-secret.json -PatientId MDM-SYN-0000000048-1 -DocId shl-MDM-SYN-0000000048-1
 ```
 
