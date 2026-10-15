@@ -1,6 +1,6 @@
-# M5 Health -- Web App
+# M5 Whole Health -- Web App
 
-A React + Vite implementation of the M5 Health PIQI Personal Health Companion
+A React + Vite implementation of the M5 Whole Health PIQI Personal Health Companion
 MVP described in the [repo root README](../README.md). Everything runs
 client-side in the browser -- there is no backend, and all data is kept in
 `localStorage` on the device.

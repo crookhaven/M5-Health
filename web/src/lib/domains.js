@@ -1,5 +1,5 @@
 // Data classes from the HL7 PIQI Clinical Data Model (PAT_CLINICAL_V1), plus
-// Coverage, which is an M5 Health addition outside the PIQI clinical model.
+// Coverage, which is an M5 Whole Health addition outside the PIQI clinical model.
 // https://github.com/piqiframework/reference_application/blob/main/PIQI_Engine.Server/ReferenceData/Models/PAT_CLINICAL_V1.json
 //
 // Encounters, imaging, clinical notes, referrals, care team and contacts are

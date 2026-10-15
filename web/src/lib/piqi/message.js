@@ -4,7 +4,7 @@ import { codeableConcept, observationValue, rangeValue, toWireValue } from './at
 import { isDisplayOnly } from '../domains'
 
 // The 10 PIQI Clinical Data Model classes and their message field names --
-// Coverage is an M5 Health addition outside the model and is never included.
+// Coverage is an M5 Whole Health addition outside the model and is never included.
 // https://github.com/piqiframework/reference_application/blob/main/PIQI_Engine.Server/ReferenceData/Models/PAT_CLINICAL_V1.json
 export const PIQI_MESSAGE_DOMAINS = [
   'demographics',
@@ -53,7 +53,7 @@ export function buildPiqiMessage(sourceRecords, assertions, { domains = PIQI_MES
   }
 
   return {
-    FormatID: 'M5 Health JSON',
+    FormatID: 'M5 Whole Health JSON',
     MessageId: crypto.randomUUID(),
     model: 'PAT_CLINICAL_V1',
     patient,

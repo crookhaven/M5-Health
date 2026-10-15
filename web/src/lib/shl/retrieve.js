@@ -32,7 +32,7 @@ async function retrieveDirectFile(payload, recipient) {
   }
 }
 
-export async function retrieveShl(payload, { recipient = 'M5 Health', passcode } = {}) {
+export async function retrieveShl(payload, { recipient = 'M5 Whole Health', passcode } = {}) {
   if (payload.flag?.includes('U')) return retrieveDirectFile(payload, recipient)
 
   const body = { recipient }

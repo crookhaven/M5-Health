@@ -91,7 +91,7 @@ describe('retrieveShl with the U (direct file) flag', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await retrieveShl({ url: 'https://example.org/f?id=1', key, flag: 'LU' })
-    expect(fetchMock).toHaveBeenCalledWith('https://example.org/f?id=1&recipient=M5%20Health')
+    expect(fetchMock).toHaveBeenCalledWith('https://example.org/f?id=1&recipient=M5%20Whole%20Health')
   })
 
   it('takes the content type from the JWE cty header and inflates zip DEF files', async () => {

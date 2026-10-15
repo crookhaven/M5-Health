@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>M5 Health Test Wallet</title>
+<title>M5 Whole Health Test Wallet</title>
 <style>
   :root {
     --bg: #f7f7f5;
@@ -145,7 +145,7 @@
   </div>
 
 <script type="module">
-// M5 Health Test Wallet
+// M5 Whole Health Test Wallet
 //
 // A test tool for the "Kill the Clipboard" SMART Health Check-in connectathon
 // (https://smart-health-checkin.org/connectathon/), covering BOTH roles of
@@ -234,7 +234,7 @@ function saveCustomWallets(list) {
 
 // ---------------------------------------------------------------------------
 // Synthetic patient record (ground rule: synthetic data only). Jordan Rivera
-// is M5 Health's own long-standing sample patient (web/src/data/sample_fhir_bundle.json),
+// is M5 Whole Health's own long-standing sample patient (web/src/data/sample_fhir_bundle.json),
 // reused here with the meta.profile tags the connectathon's selectors key off of.
 // ---------------------------------------------------------------------------
 
@@ -1198,7 +1198,7 @@ function renderConsentScreen({ request, origin, unsupportedItems, formState, onS
   // declineAll(request) shape (see wireRealRequest below) -- swap the handler:
   actions.firstChild.onclick = onDeclineAll;
 
-  app.appendChild(el("p", { class: "footer-note" }, "M5 Health Test Wallet -- synthetic data only, built for the SMART Health Check-in connectathon."));
+  app.appendChild(el("p", { class: "footer-note" }, "M5 Whole Health Test Wallet -- synthetic data only, built for the SMART Health Check-in connectathon."));
 }
 
 function renderDone({ origin, response }) {
@@ -1261,7 +1261,7 @@ function renderHome({ opened }) {
 }
 
 function renderWalletTab({ opened }) {
-  app.appendChild(el("h1", {}, "M5 Health Test Wallet"));
+  app.appendChild(el("h1", {}, "M5 Whole Health Test Wallet"));
   app.appendChild(
     el("p", {}, [
       "A web wallet for the ",
@@ -1333,7 +1333,7 @@ function renderWalletTab({ opened }) {
   app.appendChild(
     el("p", { class: "footer-note" }, [
       "Synthetic data only. Source: ",
-      el("a", { href: "https://github.com/crookhaven/M5-Health", target: "_blank", rel: "noopener" }, "crookhaven/M5-Health"),
+      el("a", { href: "https://github.com/crookhaven/M5-WholeHealth", target: "_blank", rel: "noopener" }, "crookhaven/M5-WholeHealth"),
       ".",
     ]),
   );
@@ -1516,7 +1516,7 @@ const PHYSICIAN_QUESTIONNAIRE = {
 // including look-alikes (emergency contact, email) that must NOT be prefilled.
 const PREFILL_DEMO_QUESTIONNAIRE = {
   resourceType: "Questionnaire",
-  url: "https://crookhaven.github.io/M5-Health/test-wallet/questionnaires/registration-demo",
+  url: "https://crookhaven.github.io/M5-WholeHealth/test-wallet/questionnaires/registration-demo",
   version: "1",
   status: "active",
   title: "Registration (prefill demo)",
@@ -1657,7 +1657,7 @@ function renderVerifierTab() {
   walletCard.appendChild(
     el("p", { class: "muted" }, "Kept in this browser only (localStorage) -- the same way the SMART Testing EHR's own “Web wallet URL” field works, so you can test before anything is registered."),
   );
-  const nameInput = el("input", { type: "text", placeholder: "Name (e.g. M5 Health self-test)" });
+  const nameInput = el("input", { type: "text", placeholder: "Name (e.g. M5 Whole Health self-test)" });
   const urlInput = el("input", { type: "text", placeholder: "https://…/test-wallet/" });
   walletCard.appendChild(el("div", { class: "copy-row" }, [nameInput]));
   walletCard.appendChild(el("div", { class: "copy-row" }, [urlInput]));
@@ -1705,7 +1705,7 @@ function renderVerifierTab() {
 
   function buildRequest() {
     return {
-      purpose: "M5 Health Verifier test -- pre-visit check-in",
+      purpose: "M5 Whole Health Verifier test -- pre-visit check-in",
       items: SAMPLE_REQUEST.items.filter((i) => checkedIds.has(i.id)),
     };
   }

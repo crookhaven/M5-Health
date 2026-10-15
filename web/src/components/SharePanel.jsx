@@ -24,14 +24,14 @@ export default function SharePanel({ sourceRecords }) {
 
   function handleExportPiqiMessage() {
     const message = buildPiqiMessage(sourceRecords, assertions, { domains: piqiDomains })
-    downloadText(JSON.stringify(message, null, 2), 'm5-health-piqi-message.json')
+    downloadText(JSON.stringify(message, null, 2), 'm5-whole-health-piqi-message.json')
   }
 
   async function handleExportPdf() {
     const { buildPdfSummary } = await import('../lib/export/pdfExport')
     const sections = buildPdfSections(domains, sourceRecords, assertions)
     const blob = buildPdfSummary({ sections })
-    downloadBlob(blob, 'm5-health-summary.pdf')
+    downloadBlob(blob, 'm5-whole-health-summary.pdf')
   }
 
   async function handleExportShl() {
@@ -42,7 +42,7 @@ export default function SharePanel({ sourceRecords }) {
       const { buildShlPackage } = await import('../lib/shl/buildPackage')
       const { generateQrDataUrl } = await import('../lib/qr/generate')
       const bundle = buildSharePackageBundle(domains, sourceRecords, assertions)
-      const pkg = await buildShlPackage(bundle, { label: 'M5 Health export' })
+      const pkg = await buildShlPackage(bundle, { label: 'M5 Whole Health export' })
       const qr = await generateQrDataUrl(pkg.shlUri)
       setShlResult({ ...pkg, qr, bundle })
     } catch (err) {
@@ -54,7 +54,7 @@ export default function SharePanel({ sourceRecords }) {
 
   function handleDownloadPackage() {
     if (!shlResult) return
-    downloadText(JSON.stringify(packageFileContent(shlResult), null, 2), 'm5-health-shl-package.json')
+    downloadText(JSON.stringify(packageFileContent(shlResult), null, 2), 'm5-whole-health-shl-package.json')
   }
 
   if (domainsWithData.length === 0) {
@@ -116,7 +116,7 @@ export default function SharePanel({ sourceRecords }) {
         {shlResult && (
           <div className="shl-result">
             <p>
-              M5 Health has no server to host the encrypted record, so share two
+              M5 Whole Health has no server to host the encrypted record, so share two
               things together: this link (or its QR code) and the package file
               below. The package holds the encrypted record and the link holds
               the key; neither can be read alone. The recipient opens them in M5

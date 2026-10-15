@@ -1,5 +1,5 @@
 # Fetches a few Marketplace plans for a MADE-UP household and saves them as a file
-# the M5 Health "Compare plans" tab can load.
+# the M5 Whole Health "Compare plans" tab can load.
 # Your API key is typed here, sent only to the CMS Marketplace API, and never saved.
 
 $base = 'https://marketplace.api.healthcare.gov/api/v1'

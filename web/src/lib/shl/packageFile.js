@@ -2,14 +2,14 @@ import { decryptJwe } from './crypto'
 import { parseShlUri } from './parse'
 import { DOMAINS } from '../domains'
 
-// M5 Health has no server, so "Create SMART Health Link package" can't host the
+// M5 Whole Health has no server, so "Create SMART Health Link package" can't host the
 // encrypted file at a URL. Instead the link (or its QR code) and a package file
 // travel together: the package holds the encrypted content, the link holds the
 // key. Neither is readable alone.
 
-export const PACKAGE_URL = 'local://m5-health/no-hosting-available'
+export const PACKAGE_URL = 'local://m5-whole-health/no-hosting-available'
 // M5's own share format (records by domain), not a FHIR Bundle.
-export const SHARE_CONTENT_TYPE = 'application/vnd.m5-health.share+json'
+export const SHARE_CONTENT_TYPE = 'application/vnd.m5-whole-health.share+json'
 
 export function isPackageOnlyLink(payload) {
   return typeof payload?.url === 'string' && payload.url.startsWith('local://')
@@ -17,7 +17,7 @@ export function isPackageOnlyLink(payload) {
 
 // What "Download package" saves: the encrypted files and the label, but not the key.
 export function packageFileContent({ manifest, payload }) {
-  return { m5HealthShlPackage: 1, label: payload.label, manifest }
+  return { m5WholeHealthShlPackage: 1, label: payload.label, manifest }
 }
 
 // Decrypts a package file. The key comes from the pasted link, or from the file

@@ -23,7 +23,7 @@ export function buildPdfSummary({ sections }) {
     y += gap
   }
 
-  writeLine('M5 Health -- Shared Health Summary', { size: 16, bold: true, gap: 24 })
+  writeLine('M5 Whole Health -- Shared Health Summary', { size: 16, bold: true, gap: 24 })
   writeLine(`Generated ${new Date().toLocaleString()}`, { size: 9, gap: 20 })
 
   for (const section of sections) {

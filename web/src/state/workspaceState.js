@@ -6,7 +6,10 @@ import { displayText } from '../lib/piqi/attributeTypes'
 // PIQI results and claims. The rest of the app only ever sees the active
 // patient's slice, so screens do not need to know about the others.
 
-export const STORAGE_KEY = 'm5-health-workspace-v1'
+export const STORAGE_KEY = 'm5-whole-health-workspace-v1'
+// Where workspaces were saved before the rename to M5 Whole Health. Read once
+// so nobody loses their data; new saves go to STORAGE_KEY only.
+export const LEGACY_STORAGE_KEY = 'm5-health-workspace-v1'
 export const STATE_VERSION = 2
 
 export function emptySlice() {

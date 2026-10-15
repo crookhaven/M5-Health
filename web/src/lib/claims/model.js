@@ -182,7 +182,7 @@ export const CLAIMS_ATTRIBUTE_TYPES = {
 export const CLAIMS_CLASS_ORDER = ['member', 'coverage', 'medicalClaim', 'provider', 'claimDiagnosis', 'claimProcedure', 'claimServiceLine', 'pharmacyClaim', 'dentalClaim']
 
 // Class field names that only exist in the claims model (`coverage` is also an
-// M5 Health record type, so it is not listed here).
+// M5 Whole Health record type, so it is not listed here).
 export const CLAIMS_ONLY_CLASSES = new Set(['medicalClaim', 'claimDiagnosis', 'claimProcedure', 'claimServiceLine', 'pharmacyClaim', 'dentalClaim', 'member', 'provider'])
 
 export const CLAIMS_FIELD_LABELS = {

@@ -361,7 +361,7 @@ function ShlImport() {
       const payload = parseShlUri(url)
       if (isPackageOnlyLink(payload)) {
         throw new Error(
-          'This link was made by M5 Health and has no online copy. Upload the package file that came with it (m5-health-shl-package.json) below.',
+          'This link was made by M5 Whole Health and has no online copy. Upload the package file that came with it (m5-whole-health-shl-package.json) below.',
         )
       }
       if (requiresPasscode(payload)) setNeedsPasscode(true)
@@ -471,7 +471,7 @@ function ShlImport() {
         {busy ? 'Retrieving...' : 'Retrieve'}
       </button>
       <p>
-        Got a link from M5 Health together with a package file? Paste the link above, then upload
+        Got a link from M5 Whole Health together with a package file? Paste the link above, then upload
         the package file here.
       </p>
       <label className="file-label">

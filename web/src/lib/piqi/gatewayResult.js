@@ -64,7 +64,7 @@ export function parseGatewayResult(input) {
   let skipped = 0
 
   // A claims (PAT_EOB_V1) result is recognised by its claims-only classes;
-  // "coverage" alone is ambiguous because M5 Health also has coverage records.
+  // "coverage" alone is ambiguous because M5 Whole Health also has coverage records.
   const claims = classes.some((c) => CLAIMS_ONLY_CLASSES.has(claimsClassKey(c.className)))
 
   for (const cls of classes) {
