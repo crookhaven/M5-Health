@@ -74,7 +74,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Move Sam up' }))
     expect(order()).toEqual(['Sam', 'Patient 1'])
     expect(screen.getByRole('button', { name: 'Move Sam up' })).toBeDisabled()
-    expect(screen.getByRole('combobox')).toHaveDisplayValue('Sam')
+    expect(within(screen.getByRole('region', { name: 'Patient' })).getByRole('combobox')).toHaveDisplayValue('Sam')
   })
 
   it('keeps each patient records separate', async () => {
