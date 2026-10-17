@@ -70,12 +70,13 @@ describe('FHIR Bundle import', () => {
 })
 
 describe('Import panel notice', () => {
-  it('tells people not to import real health information', () => {
+  it('says records stay in the browser and links the terms and privacy policy', () => {
     render(
       <WorkspaceProvider>
         <ImportPanel />
       </WorkspaceProvider>,
     )
-    expect(screen.getByText(/Do not import real health information/)).toBeInTheDocument()
+    expect(screen.getByText(/Your records stay in this browser/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'privacy policy' })).toHaveAttribute('href', 'privacy.html')
   })
 })
