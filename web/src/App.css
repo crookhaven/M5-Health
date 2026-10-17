@@ -1133,4 +1133,10 @@ table {
 .imaging-files ul {
   margin: 0.25rem 0 0.5rem;
   padding-left: 1.25rem;
+.copies-tag {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent, #0b6e69);
 }

@@ -10,6 +10,7 @@ import SpecialtyFilter from './SpecialtyFilter'
 import ImagingFiles from './ImagingFiles'
 import DateFilter from './DateFilter'
 import { ALL_DATES, filterByDate } from '../lib/dateFilter'
+import { recordSignature } from '../lib/dedup'
 
 const SYSTEM_NAMES = [
   [/snomed/i, 'SNOMED CT'],
@@ -42,7 +43,26 @@ function Codes({ value }) {
 
 const SPECIALTY_LABELS = Object.fromEntries(SPECIALTIES.map((s) => [s.key, s.label]))
 
-function ClinicalTable({ domain, records, assertions }) {
+function Copies({ count }) {
+  if (!count || count < 2) return null
+  return <div className="copies-tag">{count} identical copies</div>
+}
+
+// One record per group of exact copies (same content, any source), keeping
+// the first, with how many copies there were.
+function collapseCopies(records) {
+  const groups = new Map()
+  for (const record of records) {
+    const key = recordSignature(record)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(record)
+  }
+  const kept = [...groups.values()].map((g) => g[0])
+  const copies = new Map([...groups.values()].map((g) => [g[0].id, g.length]))
+  return { kept, copies }
+}
+
+function ClinicalTable({ domain, records, assertions, copies }) {
   const dateField = DATE_FIELDS[domain]
   return (
     <div className="table-scroll">
@@ -65,6 +85,7 @@ function ClinicalTable({ domain, records, assertions }) {
                 <th scope="row">
                   {recordLabel(domain, merged)}
                   <div className="specialty-tag">{SPECIALTY_LABELS[specialtyOf(record)]}</div>
+                  <Copies count={copies?.get(record.id)} />
                 </th>
                 <td>{domain === 'demographics' ? '' : <Codes value={merged[IDENTITY_FIELDS[domain]]} />}</td>
                 <td>{displayDate(merged[dateField]) ?? ''}</td>
@@ -92,7 +113,7 @@ function ClinicalTable({ domain, records, assertions }) {
   )
 }
 
-function DocumentTable({ domain, records }) {
+function DocumentTable({ domain, records, copies }) {
   const doc = DOCUMENT_FIELDS[domain]
   const summaryField = SUMMARY_FIELD[domain]
   return (
@@ -115,6 +136,7 @@ function DocumentTable({ domain, records }) {
                 <th scope="row">
                   {recordLabel(domain, data)}
                   <div className="specialty-tag">{SPECIALTY_LABELS[specialtyOf(record)]}</div>
+                  <Copies count={copies?.get(record.id)} />
                 </th>
                 <td>{displayDate(data.date) ?? ''}</td>
                 <td>
@@ -178,6 +200,7 @@ function CoverageTable({ records }) {
 export default function ClinicalView({ sourceRecords, assertions }) {
   const [specialty, setSpecialty] = useState('all')
   const [dateFilter, setDateFilter] = useState(ALL_DATES)
+  const [collapse, setCollapse] = useState(true)
 
   if (sourceRecords.length === 0) {
     return <div className="empty-state">No health information imported yet.</div>
@@ -191,14 +214,26 @@ export default function ClinicalView({ sourceRecords, assertions }) {
     byDomain[record.domain].push(record)
   }
   const present = DOMAIN_ORDER.filter((d) => byDomain[d]?.length)
+  const shown = {}
+  for (const domain of present) {
+    shown[domain] = collapse ? collapseCopies(byDomain[domain]) : { kept: byDomain[domain], copies: null }
+  }
+  const countText = (domain) =>
+    shown[domain].kept.length === byDomain[domain].length
+      ? `${byDomain[domain].length}`
+      : `${byDomain[domain].length}, ${shown[domain].kept.length} distinct`
 
   return (
     <div className="clinical-view">
       <p className="section-help">
-        Every record exactly as it came in -- nothing merged or grouped -- so
-        you can compare it against your My health summary. Narrow to a year,
-        month or day with the date filter.
+        Every record as it came in -- nothing merged or grouped -- so you can
+        compare it against your My health summary. Narrow to a year, month or
+        day with the date filter.
       </p>
+      <label className="plan-option">
+        <input type="checkbox" checked={collapse} onChange={(e) => setCollapse(e.target.checked)} /> Show exact
+        copies once, with a count
+      </label>
       <div className="filter-row">
         <SpecialtyFilter records={dateFiltered} value={specialty} onChange={setSpecialty} />
         <DateFilter records={sourceRecords} value={dateFilter} onChange={setDateFilter} />
@@ -206,19 +241,19 @@ export default function ClinicalView({ sourceRecords, assertions }) {
       <nav className="clinical-index" aria-label="Sections">
         {present.map((domain) => (
           <a key={domain} href={`#clinical-${domain}`}>
-            {DOMAINS[domain].label} ({byDomain[domain].length})
+            {DOMAINS[domain].label} ({countText(domain)})
           </a>
         ))}
       </nav>
       {present.map((domain) => (
         <section key={domain} id={`clinical-${domain}`}>
           <h2>
-            {DOMAINS[domain].label} <span className="count">({byDomain[domain].length})</span>
+            {DOMAINS[domain].label} <span className="count">({countText(domain)})</span>
           </h2>
-          {domain === 'coverage' && <CoverageTable records={byDomain[domain]} />}
-          {isDisplayOnly(domain) && <DocumentTable domain={domain} records={byDomain[domain]} />}
+          {domain === 'coverage' && <CoverageTable records={shown[domain].kept} />}
+          {isDisplayOnly(domain) && <DocumentTable domain={domain} records={shown[domain].kept} copies={shown[domain].copies} />}
           {domain !== 'coverage' && !isDisplayOnly(domain) && (
-            <ClinicalTable domain={domain} records={byDomain[domain]} assertions={assertions} />
+            <ClinicalTable domain={domain} records={shown[domain].kept} assertions={assertions} copies={shown[domain].copies} />
           )}
         </section>
       ))}

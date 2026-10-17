@@ -11,9 +11,12 @@ function ResultLoader({ dataset }) {
   const info = DATASETS[dataset]
   const hasData = datasetHasData(dataset, { sourceRecords, claimsData })
 
+  const [uniqueOnly, setUniqueOnly] = useState(false)
+
   function downloadMessage() {
-    const message = buildDatasetMessage(dataset, { sourceRecords, assertions, claimsData })
-    downloadText(JSON.stringify(message, null, 2), info.fileName)
+    const message = buildDatasetMessage(dataset, { sourceRecords, assertions, claimsData, uniqueOnly })
+    const name = uniqueOnly ? info.fileName.replace(/\.json$/, '-distinct.json') : info.fileName
+    downloadText(JSON.stringify(message, null, 2), name)
   }
 
   const [text, setText] = useState('')
@@ -59,6 +62,13 @@ function ResultLoader({ dataset }) {
               Download {info.label} PIQI message
             </button>
           </div>
+          {dataset !== 'claims' && (
+            <label className="plan-option">
+              <input type="checkbox" checked={uniqueOnly} onChange={(e) => setUniqueOnly(e.target.checked)} /> Leave
+              out exact copies. Each distinct record is scored once, so the score reflects the facts in the record
+              rather than how often a source repeated them. Leave it unticked to score the data exactly as it came in.
+            </label>
+          )}
           {!hasData && <span className="local-note"> Import some data first.</span>}
         </li>
         <li>

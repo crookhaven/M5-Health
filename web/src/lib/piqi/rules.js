@@ -324,3 +324,20 @@ export function recordLabel(domain, data) {
 export function normalizeText(value) {
   return (displayText(value) ?? '').toString().trim().toLowerCase()
 }
+
+// Fields the PIQI Clinical Data Model (PAT_CLINICAL_V1) names differently from
+// the app. The app keeps its own names; the message and Gateway results are
+// translated at the edge. Older results that used the app's names still work.
+export const WIRE_FIELD_NAMES = {
+  labResults: { test: 'performedTest', order: 'orderedTest' },
+}
+
+export function wireFieldName(domain, field) {
+  return WIRE_FIELD_NAMES[domain]?.[field] ?? field
+}
+
+export function appFieldName(domain, wireName) {
+  const names = WIRE_FIELD_NAMES[domain]
+  if (!names) return wireName
+  return Object.keys(names).find((k) => names[k] === wireName) ?? wireName
+}
