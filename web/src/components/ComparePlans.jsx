@@ -13,6 +13,7 @@ import {
 import { summarizePatient } from '../lib/marketplace/patientSummary'
 import { useWorkspace } from '../state/WorkspaceContext'
 import PlanAdvisor from './PlanAdvisor'
+import { MARKETPLACE_PLANS_URL, fetchFromGitHub } from '../lib/openSyntheticPatients'
 
 const NOT_LISTED = 'Not listed'
 const DEFAULT_SHOWN = 4
@@ -74,6 +75,7 @@ export default function ComparePlans() {
   const { sourceRecords, assertions } = useWorkspace()
   const [data, setData] = useState(sample)
   const [source, setSource] = useState('sample')
+  const [loadingGitHub, setLoadingGitHub] = useState(false)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState(() => sample.plans.slice(0, DEFAULT_SHOWN).map((p) => p.id))
   const [metals, setMetals] = useState([])
@@ -105,18 +107,33 @@ export default function ComparePlans() {
   const isSample = source === 'sample'
   const sbcCount = data.plans.filter((p) => p.sbc.url).length
 
+  function applyPlans(text, name) {
+    const parsed = parsePlansFile(text)
+    setData(parsed)
+    setSource(name)
+    setSelected(parsed.plans.slice(0, DEFAULT_SHOWN).map((p) => p.id))
+    setMetals([])
+    setError(null)
+  }
+
+  async function loadFromGitHub() {
+    setLoadingGitHub(true)
+    try {
+      applyPlans(await fetchFromGitHub(MARKETPLACE_PLANS_URL, 'text'), 'marketplace_plans_48201.json (open-synthetic-patients)')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoadingGitHub(false)
+    }
+  }
+
   function handleFile(event) {
     const file = event.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const parsed = parsePlansFile(String(reader.result))
-        setData(parsed)
-        setSource(file.name)
-        setSelected(parsed.plans.slice(0, DEFAULT_SHOWN).map((p) => p.id))
-        setMetals([])
-        setError(null)
+        applyPlans(String(reader.result), file.name)
       } catch (err) {
         setError(err.message)
       }
@@ -179,8 +196,9 @@ export default function ComparePlans() {
       <h2>Compare Marketplace plans</h2>
       {isSample ? (
         <p className="local-note" role="note">
-          Showing invented sample plans. These are not real plans or prices. Load a plans file
-          saved from the CMS Marketplace API to compare real ones.
+          Showing invented sample plans. These are not real plans or prices. Load the real 2026
+          plans for ZIP 48201 (from the open-synthetic-patients collection on GitHub), or a plans
+          file saved from the CMS Marketplace API, to compare real ones.
         </p>
       ) : (
         <p className="local-note">
@@ -199,6 +217,9 @@ export default function ComparePlans() {
         </p>
       )}
       <div className="button-row">
+        <button type="button" onClick={loadFromGitHub} disabled={loadingGitHub}>
+          {loadingGitHub ? 'Loading…' : 'Load real 2026 plans for ZIP 48201'}
+        </button>
         <label>
           Load plans file (.json){' '}
           <input type="file" accept=".json,application/json" onChange={handleFile} />

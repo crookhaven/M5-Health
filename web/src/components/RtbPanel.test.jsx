@@ -11,6 +11,14 @@ describe('RtbPanel', () => {
     expect(screen.queryByText(/Choosing between pharmacies/)).toBeNull()
   })
 
+  it('offers example plans, including Medicare Advantage, on the medical tab only', () => {
+    const { unmount } = render(<RtbPanel program={MEDICAL_RTB} />)
+    expect(screen.getByRole('group', { name: 'Medicare Advantage' })).toBeTruthy()
+    unmount()
+    render(<RtbPanel program={PHARMACY_RTB} />)
+    expect(screen.queryByText(/a plan.s benefits from FHIR/)).toBeNull()
+  })
+
   it('shows only the pharmacy use cases on the pharmacy tab', () => {
     render(<RtbPanel program={PHARMACY_RTB} />)
     expect(screen.getByText(/Choosing between pharmacies/)).toBeTruthy()

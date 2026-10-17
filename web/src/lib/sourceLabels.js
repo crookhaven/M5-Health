@@ -4,6 +4,7 @@ export const SOURCE_TYPE_LABELS = {
   'smart-health-link': 'SMART Health Link',
   'pdf-upload': 'PDF import',
   'fhir-bundle-upload': 'FHIR bundle upload',
+  'open-synthetic-patients': 'open-synthetic-patients (GitHub)',
   manual: 'Manually entered',
 }
 

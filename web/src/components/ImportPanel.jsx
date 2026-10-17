@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useWorkspace } from '../state/WorkspaceContext'
 import { createSourceRecord, validateCoveragePlan } from '../lib/sourceRecord'
 import { normalizeFhirBundle } from '../lib/fhir/normalize'
-import { extractClaims } from '../lib/claims/extract'
+import { CATALOG_URL, OSP_REPO, bundleToRecords, catalogPatients, fetchFromGitHub } from '../lib/openSyntheticPatients'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
 import { isPackageOnlyLink } from '../lib/shl/packageFile'
 import { REQUIRED_FIELDS, FIELD_LABELS, recordLabel, IDENTITY_FIELDS, DATE_FIELDS } from '../lib/piqi/rules'
@@ -151,6 +151,85 @@ function CoverageImport() {
   )
 }
 
+function OpenSyntheticPatientsImport() {
+  const { addRecords, addClaims, addPatient, renamePatient, activeId, sourceRecords, claimsData } = useWorkspace()
+  const [patients, setPatients] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const [status, setStatus] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function loadCatalog() {
+    setBusy('catalog')
+    setError(null)
+    try {
+      setPatients(catalogPatients(await fetchFromGitHub(CATALOG_URL)))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function loadPatient(patient) {
+    setBusy(patient.slug)
+    setError(null)
+    try {
+      const bundle = await fetchFromGitHub(patient.url)
+      const { records, claimsData: claims } = bundleToRecords(bundle, {
+        sourceType: 'open-synthetic-patients',
+        documentName: `${patient.slug}/bundle.json`,
+      })
+      // Reuse an empty patient slot; otherwise each sample becomes its own patient.
+      const empty = sourceRecords.length === 0 && !claimsData
+      if (empty) renamePatient(activeId, patient.name)
+      else addPatient(patient.name)
+      addRecords(records)
+      if (claims) addClaims(claims)
+      setStatus(
+        `Loaded ${patient.name}${empty ? '' : ' as a new patient'}: ${records.length} records` +
+          (claims ? ` and ${claims.claims.length} insurance claims` : '') +
+          '.',
+      )
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="import-section">
+      <h2>Sample patients from open-synthetic-patients</h2>
+      <p>
+        Load a made-up test patient straight from the{' '}
+        <a href={OSP_REPO} target="_blank" rel="noreferrer">
+          open-synthetic-patients
+        </a>{' '}
+        collection on GitHub. Each one is loaded as its own patient.
+      </p>
+      {!patients && (
+        <button type="button" onClick={loadCatalog} disabled={busy === 'catalog'}>
+          {busy === 'catalog' ? 'Loading the list…' : 'Show the patients'}
+        </button>
+      )}
+      {patients && (
+        <ul className="scenario-list">
+          {patients.map((p) => (
+            <li key={p.slug}>
+              <button type="button" onClick={() => loadPatient(p)} disabled={busy !== null}>
+                {busy === p.slug ? 'Loading…' : `Load ${p.name}`}
+              </button>{' '}
+              {p.summary}
+            </li>
+          ))}
+        </ul>
+      )}
+      {status && <p className="import-message">{status}</p>}
+      {error && <p className="import-error">{error}</p>}
+    </section>
+  )
+}
+
 function FhirBundleImport() {
   const { addRecords, addClaims } = useWorkspace()
   const [status, setStatus] = useState(null)
@@ -163,22 +242,11 @@ function FhirBundleImport() {
     reader.onload = () => {
       try {
         const bundle = JSON.parse(reader.result)
-        const normalized = normalizeFhirBundle(bundle)
-        if (normalized.length === 0) {
-          throw new Error(
-            'No recognized FHIR resources found. This importer expects a single Bundle (not a bulk-export NDJSON file).',
-          )
-        }
-        const records = normalized.map(({ domain, data }) =>
-          createSourceRecord({
-            sourceType: 'fhir-bundle-upload',
-            documentName: file.name,
-            domain,
-            data,
-          }),
-        )
+        const { records, claimsData } = bundleToRecords(bundle, {
+          sourceType: 'fhir-bundle-upload',
+          documentName: file.name,
+        })
         addRecords(records)
-        const claimsData = extractClaims(bundle)
         if (claimsData) addClaims(claimsData)
         setStatus(
           `Imported ${records.length} records from ${file.name}.` +
@@ -512,6 +580,7 @@ export default function ImportPanel() {
         summary you paste into Claude also leaves this app.
       </p>
       <SampleImport />
+      <OpenSyntheticPatientsImport />
       <CoverageImport />
       <FhirBundleImport />
       <PdfImport />

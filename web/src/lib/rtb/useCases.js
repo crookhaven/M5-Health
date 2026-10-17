@@ -20,7 +20,7 @@ export const MEDICAL_RTB = {
   notes: [
     'How M5 Whole Health would take part: as a third-party app it uses the CMS public-data path. It first needs the member’s exact plan ID (ideally from the CARIN Digital Insurance Card), then reads the CMS files for that plan.',
     'For the November 1 demonstration, known plan IDs are used and shown on screen as such.',
-    'Programs: ACA plans are read from the HealthCare.gov Marketplace API. Medicare Advantage (CY2027 PBP files) is not yet supported. Employer plans have no CMS file, so their Summary of Benefits and Coverage is the source.',
+    'Programs: ACA plans are read from the HealthCare.gov Marketplace API (Compare plans). Medicare Advantage, ACA and employer plans can also be read as FHIR InsurancePlan resources on the CARIN Digital Insurance Card SBC profile (Try it, below), using the Benefit Plan Standard examples: 7 Medicare Advantage plans, 5 of them from the CY2027 PBP files.',
     'Known issue: the plan screen says "Not covered" when the data has no entry. The update requires "not in the public plan data" instead.',
   ],
   useCases: [
@@ -29,18 +29,21 @@ export const MEDICAL_RTB = {
       items: [
         ['SHALL', 'Plan-level fields that apply to the plan', 'partial',
           'Name, type, metal level, HSA and document links. Missing: cost-sharing reduction version, coverage dates, referral needed, plan-wide exclusions, family amounts.'],
-        ['SHALL', 'Plan year and date of the CMS data, on every answer', 'missing'],
+        ['SHALL', 'Plan year and date of the CMS data, on every answer', 'partial',
+          'The InsurancePlan view shows the plan year with every answer. The date the CMS data was published is not in the FHIR data.'],
         ['SHALL', 'Cost of the twelve core services', 'partial',
-          '5 of 12: primary care, specialist, urgent care, emergency room, mental health.'],
+          'Compare plans: 5 of 12 (primary care, specialist, urgent care, emergency room, mental health). The InsurancePlan view shows every service the plan data has.'],
         ['SHALL', 'Preventive services, $0 in network', 'missing'],
-        ['SHALL', 'Whether each of the ten extra benefits is covered', 'missing'],
+        ['SHALL', 'Whether each of the ten extra benefits is covered', 'partial',
+          'The InsurancePlan view answers for each one. Where the SBC profile has no code for a benefit, it can only say the plan lists it.'],
         ['SHOULD', 'Cost and other details of the ten extra benefits', 'missing'],
       ],
     },
     {
       title: '2. Does the cost change depending on where I go?',
       items: [
-        ['SHALL', 'Cost by setting, including nurse or PA visit, skilled nursing and home health', 'missing'],
+        ['SHALL', 'Cost by setting, including nurse or PA visit, skilled nursing and home health', 'partial',
+          'The InsurancePlan view shows skilled nursing and hospital costs, including hospital tiers and day ranges. Home health has no SBC code yet, so it shows only as listed.'],
         ['SHALL', 'In network versus out of network, out-of-network deductible and maximum', 'partial',
           'Shown on the plan screen. Compare plans shows in-network only.'],
         ['SHALL', 'Provider directory link', 'supported'],
@@ -52,13 +55,14 @@ export const MEDICAL_RTB = {
       title: '3. Is there a limit on this service?',
       items: [
         ['SHOULD', 'Limits and dollar maximums for the ten extra benefits', 'partial',
-          'The plan screen shows filed limits, but always labels them "per year".'],
+          'The InsurancePlan view shows limits with their own period (per visit, per 6 months, per benefit period). The Medicare Advantage examples carry no limits in FHIR yet; the profile has no place for most of them.'],
       ],
     },
     {
       title: '4. Does my plan cover hearing aids? (and other extra benefits)',
       items: [
-        ['SHALL', 'Fact 1: covered, covered with a limit, not covered, or not in the CMS data', 'missing'],
+        ['SHALL', 'Fact 1: covered, covered with a limit, not covered, or not in the CMS data', 'partial',
+          'Answered from a FHIR InsurancePlan. For Medicare Advantage hearing aids the answer is "listed by the plan": the PBP data has the cost and limits, but the SBC profile has no hearing aid code to carry them.'],
         ['SHOULD', 'Facts 2–6: add-on or included, limits, cost in and out of network, exclusions, counts toward the maximum', 'missing'],
       ],
     },
