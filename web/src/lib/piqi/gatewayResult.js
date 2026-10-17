@@ -1,5 +1,6 @@
 import { IDENTITY_FIELDS, appFieldName, normalizeText, recordLabel } from './rules'
 import { effectiveData } from './engine'
+import { messageRecords } from './message'
 import { CLAIMS_IDENTITY_FIELDS, CLAIMS_ONLY_CLASSES, claimsClassKey } from '../claims/model'
 
 // Parses the JSON result returned by the PIQI Gateway's audit endpoint (the
@@ -67,8 +68,10 @@ export function parseGatewayResult(input) {
   // "coverage" alone is ambiguous because M5 Whole Health also has coverage records.
   const claims = classes.some((c) => CLAIMS_ONLY_CLASSES.has(claimsClassKey(c.className)))
 
+  const elementCounts = {}
   for (const cls of classes) {
     const domain = claims ? (claimsClassKey(cls.className) ?? cls.className) : cls.className
+    elementCounts[domain] = (cls.elements ?? []).length
     ;(cls.elements ?? []).forEach((element, elementIndex) => {
       const label = elementLabel(domain, element, claims)
       for (const attribute of element.attributes ?? []) {
@@ -122,6 +125,7 @@ export function parseGatewayResult(input) {
         instanceCount: c.instanceCount,
       })),
     checks,
+    elementCounts,
   }
 }
 
@@ -132,10 +136,14 @@ export function parseGatewayResult(input) {
 // so the identity label is compared too; a mismatch leaves recordId null and
 // the check can only be flagged for a provider, never edited here.
 export function linkChecksToRecords(parsed, sourceRecords, assertions) {
+  // The message may have listed every record or only distinct ones ("leave
+  // out exact copies"); the number of elements the Gateway saw says which.
   const byDomain = new Map()
-  for (const record of sourceRecords) {
-    if (!byDomain.has(record.domain)) byDomain.set(record.domain, [])
-    byDomain.get(record.domain).push(record)
+  for (const domain of new Set(parsed.checks.map((c) => c.domain))) {
+    const all = messageRecords(sourceRecords, assertions, domain)
+    const seen = parsed.elementCounts?.[domain]
+    const unique = seen !== undefined && seen !== all.length ? messageRecords(sourceRecords, assertions, domain, { uniqueOnly: true }) : null
+    byDomain.set(domain, unique && unique.length === seen ? unique : all)
   }
 
   const checks = parsed.checks.map((check) => {

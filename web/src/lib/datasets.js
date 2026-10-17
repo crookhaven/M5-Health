@@ -30,10 +30,10 @@ export const DATASET_ORDER = ['clinical', 'ips', 'claims']
 // order, so a result for the IPS message links to the same records.
 export const IPS_DOMAINS = ['demographics', 'allergies', 'medications', 'conditions']
 
-export function buildDatasetMessage(dataset, { sourceRecords, assertions, claimsData }) {
+export function buildDatasetMessage(dataset, { sourceRecords, assertions, claimsData, uniqueOnly = false }) {
   if (dataset === 'claims') return buildClaimsPiqiMessage(claimsData)
-  if (dataset === 'ips') return buildPiqiMessage(sourceRecords, assertions, { domains: IPS_DOMAINS })
-  return buildPiqiMessage(sourceRecords, assertions)
+  if (dataset === 'ips') return buildPiqiMessage(sourceRecords, assertions, { domains: IPS_DOMAINS, uniqueOnly })
+  return buildPiqiMessage(sourceRecords, assertions, { uniqueOnly })
 }
 
 export function datasetHasData(dataset, { sourceRecords, claimsData }) {

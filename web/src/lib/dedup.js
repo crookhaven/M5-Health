@@ -35,7 +35,7 @@ function canonicalize(value) {
   return value
 }
 
-function recordSignature(record) {
+export function recordSignature(record) {
   return JSON.stringify(canonicalize(record.data ?? {}))
 }
 
