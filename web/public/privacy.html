@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M5 Whole Health Privacy</title>
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<main>
+<h1>M5 Whole Health: Privacy Policy</h1>
+<p class="meta">Effective October 17, 2026 · <a href="terms.html">Terms of use</a> · <a href="./">Open the app</a></p>
+
+<h2>The short version</h2>
+<ul>
+  <li>M5 has no server, no account and no analytics. The publisher never receives your health information.</li>
+  <li>Your records are stored only in your browser, on your device. You can delete them at any time.</li>
+  <li>M5 never sells, rents or shares your information, and never uses it for advertising.</li>
+  <li>Information leaves your browser only when you choose an action that needs it, as listed below.</li>
+</ul>
+
+<h2>What M5 stores, and where</h2>
+<p>Imported records, your notes and corrections, and your settings are kept in your browser's local storage for this site. They stay until you remove them with <strong>Clear</strong> in the app or by clearing this site's data in your browser. M5 also remembers the client IDs you enter for health systems. While you are away signing in to a health system, M5 briefly keeps a one-time security code (for PKCE) in your browser's session storage; it is deleted when you return. The sign-in access token is kept only in memory and is gone when the import finishes or you close the page.</p>
+
+<h2>When information leaves your browser</h2>
+<p>Each of these happens only when you start it:</p>
+<ul>
+  <li><strong>Connecting to a health system:</strong> you sign in on the health system's own page, and your browser downloads your records directly from it. M5 asks only for read access.</li>
+  <li><strong>Retrieving a SMART Health Link:</strong> your browser downloads the encrypted records from the link's host and decrypts them on your device.</li>
+  <li><strong>Viewing images in the shlink-dicom viewer:</strong> the link opens in that viewer (shlink-dicom.exe.xyz), which decrypts the images in your browser.</li>
+  <li><strong>Scoring with PIQI:</strong> you download a PIQI message from M5 and send it to the PIQI Gateway yourself. That message contains the clinical data you are scoring.</li>
+  <li><strong>Checking medicines against plans:</strong> M5 sends the RxNorm codes of your medicines (not your name or other details) to the National Library of Medicine's RxNav and, if you enter an API key, to the CMS Marketplace API.</li>
+  <li><strong>Plan and sample data:</strong> example plans and synthetic test patients are downloaded from public GitHub repositories. Nothing about you is sent.</li>
+  <li><strong>Sharing:</strong> a SMART Health Link or PDF you create contains what you selected, and goes wherever you send it.</li>
+  <li><strong>Asking Claude for help with plans:</strong> M5 prepares a summary that you can copy and paste into Claude yourself. M5 does not send it.</li>
+</ul>
+<p>Those services have their own privacy policies.</p>
+
+<h2>Children</h2>
+<p>M5 is meant for adults managing their own records and, with authorized proxy access, their family's. It is not directed to children, and the publisher does not knowingly collect information from anyone.</p>
+
+<h2>HIPAA</h2>
+<p>M5 is a consumer app that you control. It is not run by a health care provider or health plan, and the publisher never receives your data, so HIPAA does not cover M5. The protections described here come from how M5 is built: your data stays on your device.</p>
+
+<h2>Security</h2>
+<p>M5 is served only over HTTPS, uses standard SMART on FHIR sign-in with PKCE, and decrypts SMART Health Links on your device, checking that nothing was altered. Because your records live in your browser, the security of your device and browser matters most.</p>
+
+<h2>Changes and contact</h2>
+<p>If this policy changes, the date above will change and every version stays in the project's public history at <a href="https://github.com/crookhaven/M5-WholeHealth">github.com/crookhaven/M5-WholeHealth</a>. Questions: open an issue at <a href="https://github.com/crookhaven/M5-WholeHealth/issues">github.com/crookhaven/M5-WholeHealth/issues</a>.</p>
+</main>
+</body>
+</html>
