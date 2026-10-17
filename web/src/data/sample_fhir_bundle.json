@@ -148,8 +148,8 @@
         "resourceType": "Coverage",
         "status": "active",
         "type": { "text": "PPO" },
-        "payor": [{ "display": "Health Management Associates" }],
-        "class": [{ "type": { "coding": [{ "code": "plan" }] }, "name": "Simply Blue HSA PPO" }],
+        "payor": [{ "display": "Blue Cross Blue Shield of Michigan Mutual Insurance Company" }],
+        "class": [{ "type": { "coding": [{ "code": "plan" }] }, "name": "Blue Cross® Premier PPO Silver Saver HSA" }],
         "period": { "start": "2026-01-01" }
       }
     }

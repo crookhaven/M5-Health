@@ -92,11 +92,10 @@ function SampleImport() {
         Both samples are static files bundled with the app. The sample health
         record is a small, hand-written FHIR Bundle for a fictional patient
         (Jordan Rivera), with a few intentional duplicates and gaps so the
-        PIQI checks have something to find. The sample coverage plan was
-        entered by hand from a real Blue Cross Blue Shield of Michigan
-        employer-group Benefits-at-a-Glance document and is shaped like a CMS
-        Marketplace API plan response. It is for testing the display only; it
-        is not live plan data.
+        PIQI checks have something to find. The sample coverage plan is a
+        public 2026 ACA Marketplace plan, saved from a CMS Marketplace API plan
+        search for a made-up household. It is not anyone's own coverage and is
+        for testing the display only; it is not live plan data.
       </p>
       <div className="button-row">
         <button type="button" onClick={loadSampleRecord}>
