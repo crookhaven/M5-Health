@@ -105,5 +105,12 @@ export const PHARMACY_RTB = {
           'Runs in the prescriber’s EHR, not in a patient app.'],
       ],
     },
+    {
+      title: 'Later (after the MVP). Prior authorization criteria',
+      items: [
+        ['Idea', 'When a drug needs prior authorization, show what the plan will ask the doctor, from the payer’s published coverage policy', 'missing',
+          'Payer policies (for example Aetna and Cigna) can be turned into yes/no criteria trees, which also make good test cases: one patient who meets the criteria and one who misses by one fact. Link to the payer’s policy rather than copying its text, which is copyrighted.'],
+      ],
+    },
   ],
 }
