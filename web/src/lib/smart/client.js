@@ -24,7 +24,6 @@ export const RESOURCE_SCOPES = [
   'DocumentReference',
   'Coverage',
   'Device',
-  'ImagingStudy',
 ]
 export const SCOPE = ['openid', 'fhirUser', 'launch/patient', ...RESOURCE_SCOPES.map((r) => `patient/${r}.read`)].join(' ')
 
@@ -164,7 +163,6 @@ export function recordQueries(patient) {
     `DocumentReference?patient=${p}`,
     `Coverage?patient=${p}`,
     `Device?patient=${p}`,
-    `ImagingStudy?patient=${p}`,
   ]
 }
 

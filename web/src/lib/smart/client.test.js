@@ -66,12 +66,12 @@ describe('reading the record', () => {
       }
       if (url.endsWith('/page2')) return json({ resourceType: 'Bundle', entry: [{ resource: { resourceType: 'MedicationRequest', id: 'm2' } }] })
       if (url.endsWith('/Medication/x')) return json({ resourceType: 'Medication', id: 'x', code: { text: 'Drug' } })
-      if (url.includes('ImagingStudy?')) return json({}, 403)
+      if (url.includes('Device?')) return json({}, 403)
       return json({ resourceType: 'Bundle', entry: [] })
     }
     const { bundle, skipped } = await readRecord({ iss: ISS, accessToken: 't', patient: 'p1' }, { fetchImpl })
     const types = bundle.entry.map((e) => `${e.resource.resourceType}/${e.resource.id}`)
     expect(types).toEqual(['Patient/p1', 'MedicationRequest/m1', 'MedicationRequest/m2', 'Medication/x'])
-    expect(skipped).toEqual(['ImagingStudy: not available (403)'])
+    expect(skipped).toEqual(['Device: not available (403)'])
   })
 })
