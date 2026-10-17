@@ -1,4 +1,4 @@
-import { IDENTITY_FIELDS, normalizeText, recordLabel } from './rules'
+import { IDENTITY_FIELDS, appFieldName, normalizeText, recordLabel } from './rules'
 import { effectiveData } from './engine'
 import { CLAIMS_IDENTITY_FIELDS, CLAIMS_ONLY_CLASSES, claimsClassKey } from '../claims/model'
 
@@ -42,7 +42,7 @@ function unwrap(input) {
 function elementLabel(domain, element, claims) {
   const identity = claims ? CLAIMS_IDENTITY_FIELDS[domain] : IDENTITY_FIELDS[domain]
   if (!identity) return undefined
-  const attr = element.attributes?.find((a) => a.attributeName === identity)
+  const attr = element.attributes?.find((a) => (claims ? a.attributeName : appFieldName(domain, a.attributeName)) === identity)
   return dataText(attr?.data)
 }
 
@@ -72,6 +72,7 @@ export function parseGatewayResult(input) {
     ;(cls.elements ?? []).forEach((element, elementIndex) => {
       const label = elementLabel(domain, element, claims)
       for (const attribute of element.attributes ?? []) {
+        const field = claims ? attribute.attributeName : appFieldName(domain, attribute.attributeName)
         const items = attribute.attributeAudit?.assessmentItems ?? []
         const critical = (attribute.attributeAudit?.scoringData?.attributeCriticalFailureCount ?? 0) > 0
         for (const item of items) {
@@ -79,12 +80,12 @@ export function parseGatewayResult(input) {
           else if (item.status === 'Skipped') skipped++
           else if (item.status === 'Failed') {
             checks.push({
-              id: `${domain}:${elementIndex}:${attribute.attributeName}:${item.attributeMnemonic}`,
+              id: `${domain}:${elementIndex}:${field}:${item.attributeMnemonic}`,
               domain,
               claims,
               elementIndex,
               elementLabel: label,
-              attribute: attribute.attributeName,
+              attribute: field,
               mnemonic: item.attributeMnemonic,
               assessment: item.assessment,
               reason: item.reason,

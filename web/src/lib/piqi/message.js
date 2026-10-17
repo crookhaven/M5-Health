@@ -1,5 +1,5 @@
 import { effectiveData } from './engine'
-import { ATTRIBUTE_TYPES } from './rules'
+import { ATTRIBUTE_TYPES, wireFieldName } from './rules'
 import { codeableConcept, observationValue, rangeValue, toWireValue } from './attributeTypes'
 import { isDisplayOnly } from '../domains'
 
@@ -34,7 +34,7 @@ function wireRecord(domain, data) {
   const fieldTypes = ATTRIBUTE_TYPES[domain] ?? {}
   const result = {}
   for (const field of Object.keys(fieldTypes)) {
-    result[field] =
+    result[wireFieldName(domain, field)] =
       data[field] !== undefined ? toWireValue(data[field]) : emptyWireValue(fieldTypes[field])
   }
   return result
