@@ -101,8 +101,17 @@ export function toWireValue(value) {
     }
   }
   if (type === 'obsval') {
+    // The Gateway checks that a result value is populated by its text (the
+    // reference sample sends "72", with no number), so a numeric value also
+    // goes out as text.
+    const numberText =
+      value.number === undefined || value.number === null
+        ? null
+        : value.number2 !== undefined && value.number2 !== null
+          ? `${value.number}-${value.number2}`
+          : String(value.number)
     return {
-      text: value.text ?? null,
+      text: value.text ?? numberText,
       // The real PIQI reference engine's parser throws ("Sequence contains
       // no elements") on a literal `type: null` -- confirmed by submitting
       // to the live Connectathon USCDI v3.1 scoring endpoint. An empty

@@ -404,7 +404,39 @@ function normalizeProcedure(resource, ctx) {
   }
 }
 
+// Devices that are really the system that sent the record: an EHR or
+// interface engine named as the author (e.g. "athenahealth", "Epic - Version
+// 11.4", "CRISP CCDA Service"). They are not devices the patient uses or has
+// implanted, so they stay out of Medical devices. A device linked to the
+// patient or carrying a UDI is always kept.
+const AUTHOR_KEYS = new Set(['author', 'who', 'assembler', 'enterer', 'recorder', 'informationSource', 'source', 'sender'])
+const SOURCE_SYSTEM_NAME = /\b(epic|athena(health)?|cerner|oracle health|meditech|allscripts|eclinicalworks|nextgen|ehr|emr|c-?cda|hie|interface|service|version\s*\d)/i
+
+function authorDeviceRefs(ctx) {
+  if (ctx.authorDevices) return ctx.authorDevices
+  const refs = new Set()
+  const walk = (node, key) => {
+    if (Array.isArray(node)) return node.forEach((n) => walk(n, key))
+    if (!node || typeof node !== 'object') return
+    if (AUTHOR_KEYS.has(key) && typeof node.reference === 'string' && /Device\//.test(node.reference)) refs.add(node.reference)
+    for (const [k, v] of Object.entries(node)) walk(v, k)
+  }
+  const resources = ctx.entries ? ctx.entries.map((e) => e.resource) : [...new Set(ctx.byRef.values())]
+  for (const r of resources) walk(r, null)
+  ctx.authorDevices = refs
+  return refs
+}
+
+export function isSourceSystemDevice(resource, ctx) {
+  if (resource.patient || resource.udiCarrier?.length) return false
+  const ref = `Device/${resource.id}`
+  if (resource.id && [...authorDeviceRefs(ctx)].some((r) => r === ref || r.endsWith(`/${ref}`))) return true
+  const name = [resource.type?.text, ...(resource.deviceName ?? []).map((d) => d.name)].filter(Boolean).join(' ')
+  return SOURCE_SYSTEM_NAME.test(name) && !resource.type?.coding?.some((c) => c.code)
+}
+
 function normalizeDevice(resource, ctx) {
+  if (isSourceSystemDevice(resource, ctx)) return null
   const udi = resource.udiCarrier?.[0]
   return {
     domain: 'medicalDevices',
@@ -971,7 +1003,7 @@ export function normalizeFhirBundle(bundle) {
     if (entry.fullUrl) byRef.set(entry.fullUrl, r)
     if (r.id) byRef.set(`${r.resourceType}/${r.id}`, r)
   }
-  const ctx = { byRef, seen: new Map() }
+  const ctx = { byRef, seen: new Map(), entries }
   const results = []
   for (const entry of entries) {
     const resource = entry.resource
