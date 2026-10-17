@@ -28,7 +28,8 @@ async function retrieveDirectFile(payload, recipient) {
   const plaintext = await decryptJwe(compact, payload.key)
   return {
     manifest: { files: [{ contentType, location: payload.url }] },
-    files: [{ contentType, plaintext }],
+    // Files linked from this one (shlink-dicom images) sit beside it.
+    files: [{ contentType, plaintext, baseUrl: payload.url }],
   }
 }
 
@@ -71,22 +72,28 @@ export async function retrieveShl(payload, { recipient = 'M5 Whole Health', pass
     }
     if (!compact) continue
     const plaintext = await decryptJwe(compact, payload.key)
-    decoded.push({ contentType: file.contentType, plaintext })
+    decoded.push({ contentType: file.contentType, plaintext, baseUrl: file.embedded ? null : file.location ?? null })
   }
   return { manifest, files: decoded }
 }
 
 export async function extractFhirBundles(decodedFiles) {
+  return (await extractFhirBundlesWithBase(decodedFiles)).map((b) => b.bundle)
+}
+
+// Each Bundle with the URL its linked files resolve against (null when the
+// Bundle was embedded in the manifest, which can't carry linked files).
+export async function extractFhirBundlesWithBase(decodedFiles) {
   const bundles = []
   for (const file of decodedFiles) {
     // Senders may add media type parameters, e.g. "application/fhir+json;fhirVersion=4.0.1".
     const mediaType = file.contentType?.split(';')[0].trim().toLowerCase()
     if (mediaType === 'application/fhir+json') {
-      bundles.push(JSON.parse(file.plaintext))
+      bundles.push({ bundle: JSON.parse(file.plaintext), baseUrl: file.baseUrl ?? null })
     } else if (mediaType === 'application/smart-health-card') {
       const { decodeHealthCardPayload } = await import('./healthCard')
       const bundle = decodeHealthCardPayload(file.plaintext)
-      if (bundle) bundles.push(bundle)
+      if (bundle) bundles.push({ bundle, baseUrl: null })
     }
   }
   return bundles

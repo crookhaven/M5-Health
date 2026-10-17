@@ -424,7 +424,7 @@ function ShlImport() {
     setStatus(null)
     setImportSummary(null)
     try {
-      const { retrieveShl, extractFhirBundles } = await import('../lib/shl/retrieve')
+      const { retrieveShl, extractFhirBundlesWithBase } = await import('../lib/shl/retrieve')
       const payload = parseShlUri(url)
       if (isPackageOnlyLink(payload)) {
         throw new Error(
@@ -435,8 +435,15 @@ function ShlImport() {
       const { manifest, files } = await retrieveShl(payload, {
         passcode: passcode || undefined,
       })
-      const bundles = await extractFhirBundles(files)
-      const normalized = bundles.flatMap((bundle) => normalizeFhirBundle(bundle))
+      const withBase = await extractFhirBundlesWithBase(files)
+      const bundles = withBase.map((b) => b.bundle)
+      // Imaging studies with their own DICOM files need to know where the
+      // files are: beside the Bundle they came in.
+      const normalized = withBase.flatMap(({ bundle, baseUrl }) =>
+        normalizeFhirBundle(bundle).map((n) =>
+          n.data?.dicom ? { ...n, data: { ...n.data, dicom: { ...n.data.dicom, baseUrl } } } : n,
+        ),
+      )
       const records = normalized.map(({ domain, data }) =>
         createSourceRecord({
           sourceType: 'smart-health-link',
@@ -447,7 +454,13 @@ function ShlImport() {
         }),
       )
       addRecords(records)
-      setStatus(`Retrieved and imported ${records.length} records.`)
+      const studies = normalized.filter((n) => n.data?.dicom)
+      setStatus(
+        `Retrieved and imported ${records.length} records.` +
+          (studies.length
+            ? ` ${studies.length} imaging ${studies.length === 1 ? 'study came' : 'studies came'} with images; open them from Imaging.`
+            : ''),
+      )
       setImportSummary({
         rawTally: tallyResourceTypes(bundles),
         rawTotal: bundles.reduce((n, b) => n + (b?.entry?.length ?? 0), 0),

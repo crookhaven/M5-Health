@@ -1,3 +1,4 @@
+import { dicomIndex } from '../shl/dicomFiles'
 import { ungzip } from 'pako'
 import { codeableConcept, coding, observationValue, rangeValue } from '../piqi/attributeTypes'
 
@@ -816,7 +817,19 @@ function normalizeImagingStudy(resource, ctx) {
       status: resource.status,
       ...fromReport,
       interpreter: joinNames(resource.interpreter, ctx) ?? fromReport.interpreter,
+      // The study's own DICOM files, when it came in a SMART Health Link for
+      // imaging (shlink-dicom). baseUrl is added by the SHL importer.
+      ...imagingFiles(resource),
     },
+  }
+}
+
+function imagingFiles(resource) {
+  try {
+    const dicom = dicomIndex(resource)
+    return dicom ? { dicom } : {}
+  } catch (err) {
+    return { dicomError: err.message }
   }
 }
 

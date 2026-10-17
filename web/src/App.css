@@ -1124,6 +1124,15 @@ table {
   margin-top: 0.25rem;
 }
 
+.imaging-files {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--accent-border, rgba(13, 148, 136, 0.4));
+}
+
+.imaging-files ul {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.25rem;
 .copies-tag {
   display: inline-block;
   margin-top: 0.25rem;
