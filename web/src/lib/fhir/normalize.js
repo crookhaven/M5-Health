@@ -117,7 +117,7 @@ function normalizePatient(resource) {
       deathDate: resource.deceasedDateTime,
       maritalStatus: ccFromConcept(resource.maritalStatus),
       primaryLanguage: ccFromConcept(resource.communication?.[0]?.language),
-      patientIdentifier: resource.identifier?.[0]?.value,
+      patientIdentifier: resource.identifier?.find((i) => i.value)?.value,
       currentAddress: addressText,
       emailAddress: resource.telecom?.find((t) => t.system === 'email')?.value,
       // PIQI: "telephone or other telecommunication contact information".
@@ -133,16 +133,20 @@ function normalizePatient(resource) {
 // Finds the resource a FHIR reference points at inside the same Bundle, by
 // fullUrl ("urn:uuid:...") or "Type/id". IPS documents keep the medicine in a
 // separate Medication resource that MedicationStatement/Request point to.
-function resolveReference(reference, ctx) {
+function resolveReference(reference, ctx, container) {
   const ref = reference?.reference
-  if (!ref || !ctx?.byRef) return undefined
+  if (!ref) return undefined
+  // "#med1" points at a resource contained in the referring one -- common in
+  // records converted from C-CDA, where each prescription carries its drug.
+  if (ref.startsWith('#')) return container?.contained?.find((c) => c.id === ref.slice(1))
+  if (!ctx?.byRef) return undefined
   return ctx.byRef.get(ref) ?? ctx.byRef.get(ref.split('/').slice(-2).join('/'))
 }
 
 function medicationConcept(resource, ctx) {
   if (resource.medicationCodeableConcept) return ccFromConcept(resource.medicationCodeableConcept)
   const ref = resource.medicationReference
-  const target = resolveReference(ref, ctx)
+  const target = resolveReference(ref, ctx, resource)
   if (target?.code) return ccFromConcept(target.code)
   // Unresolvable reference: the display text is still better than nothing.
   return ref?.display ? ccFromText(ref.display) : undefined
@@ -215,9 +219,9 @@ function normalizeCondition(resource, ctx) {
     domain: 'conditions',
     data: {
       condition: ccFromConcept(resource.code),
-      onsetDate: resource.onsetDateTime,
+      onsetDate: resource.onsetDateTime ?? resource.onsetPeriod?.start ?? resource.onsetString,
       conditionStatus: ccFromConcept(resource.clinicalStatus),
-      resolutionDate: resource.abatementDateTime,
+      resolutionDate: resource.abatementDateTime ?? resource.abatementPeriod?.start ?? resource.abatementString,
       clinicalStatus: ccFromConcept(resource.clinicalStatus),
       verificationStatus: ccFromConcept(resource.verificationStatus),
       conditionCategory: ccFromConcept(resource.category?.[0]),
@@ -226,6 +230,12 @@ function normalizeCondition(resource, ctx) {
       encounter: encounterLabel(resource.encounter, ctx),
     },
   }
+}
+
+// When an Observation was made: effective[x] in any of its forms, else when it
+// was issued.
+function observationDate(resource) {
+  return resource.effectiveDateTime ?? resource.effectivePeriod?.start ?? resource.effectiveInstant ?? resource.issued
 }
 
 function isCategory(resource, code) {
@@ -242,6 +252,18 @@ function normalizeObservationValue(source) {
     })
   }
   if (source.valueString) return observationValue({ text: source.valueString })
+  if (typeof source.valueInteger === 'number') return observationValue({ number: source.valueInteger })
+  if (typeof source.valueBoolean === 'boolean') return observationValue({ text: source.valueBoolean ? 'Yes' : 'No' })
+  if (source.valueRange) {
+    return observationValue({ number: source.valueRange.low?.value, number2: source.valueRange.high?.value })
+  }
+  if (source.valueRatio) {
+    const n = source.valueRatio.numerator?.value
+    const d = source.valueRatio.denominator?.value
+    if (n !== undefined) return observationValue({ text: d !== undefined ? `${n}:${d}` : String(n) })
+  }
+  if (source.valueDateTime ?? source.valueTime) return observationValue({ text: source.valueDateTime ?? source.valueTime })
+  if (source.valuePeriod?.start) return observationValue({ text: source.valuePeriod.start })
   if (source.valueCodeableConcept) {
     return observationValue({ text: source.valueCodeableConcept.text, type: ccFromConcept(source.valueCodeableConcept) })
   }
@@ -249,11 +271,18 @@ function normalizeObservationValue(source) {
 }
 
 function hasDirectValue(source) {
-  return (
-    source.valueQuantity !== undefined ||
-    source.valueString !== undefined ||
-    source.valueCodeableConcept !== undefined
-  )
+  return [
+    'valueQuantity',
+    'valueString',
+    'valueCodeableConcept',
+    'valueInteger',
+    'valueBoolean',
+    'valueRange',
+    'valueRatio',
+    'valueDateTime',
+    'valueTime',
+    'valuePeriod',
+  ].some((k) => source[k] !== undefined)
 }
 
 // Panel-style Observations (blood pressure, multi-question survey
@@ -304,7 +333,7 @@ function normalizeLabResult(resource, ctx) {
       interpretation: ccFromConcept(resource.interpretation?.[0]),
       specimenType: ccFromConcept(resource.specimen?.display ? { text: resource.specimen.display } : undefined),
       resultStatus: ccFromText(resource.status),
-      performedDateTime: resource.effectiveDateTime,
+      performedDateTime: observationDate(resource),
       issuedDateTime: resource.issued,
       referenceRange: normalizeReferenceRange(valueSource),
       orderDate: resource.issued,
@@ -325,7 +354,7 @@ function normalizeVitalSign(resource, ctx) {
       resultUnit: unitConcept(valueSource.valueQuantity),
       interpretation: ccFromConcept(resource.interpretation?.[0]),
       resultStatus: ccFromText(resource.status),
-      performedDateTime: resource.effectiveDateTime,
+      performedDateTime: observationDate(resource),
       referenceRange: normalizeReferenceRange(valueSource),
       vitalSignCategory: ccFromConcept(resource.category?.[0]),
     },
@@ -342,7 +371,7 @@ function normalizeHealthAssessment(resource, ctx) {
       assessmentStatus: ccFromText(resource.status),
       resultValue: normalizeObservationValue(valueSource),
       resultUnit: unitConcept(valueSource.valueQuantity),
-      effectiveDate: resource.effectiveDateTime,
+      effectiveDate: observationDate(resource),
       category: ccFromConcept(resource.category?.[0]),
     },
   }))
@@ -373,7 +402,7 @@ function normalizeImmunization(resource) {
   return {
     domain: 'immunizations',
     data: {
-      administrationDate: resource.occurrenceDateTime,
+      administrationDate: resource.occurrenceDateTime ?? resource.occurrenceString,
       immunization: ccFromConcept(resource.vaccineCode),
       lotNumber: resource.lotNumber,
       expirationDate: resource.expirationDate,
@@ -385,7 +414,8 @@ function normalizeImmunization(resource) {
 }
 
 function normalizeProcedure(resource, ctx) {
-  const dateTime = resource.performedDateTime ?? resource.performedPeriod?.start
+  const dateTime =
+    resource.performedDateTime ?? resource.performedPeriod?.start ?? resource.performedPeriod?.end ?? resource.performedString
   return {
     domain: 'procedures',
     data: {
@@ -853,6 +883,17 @@ function addressText(address) {
   return [address.line?.join(' '), address.city, address.state, address.postalCode].filter(Boolean).join(', ') || undefined
 }
 
+// R4 has period and one class Coding; R5 renamed them actualPeriod and a list
+// of CodeableConcepts. Some converters only date the encounter's location.
+function encounterPeriod(resource) {
+  return resource.period ?? resource.actualPeriod ?? resource.location?.find((l) => l.period)?.period
+}
+
+function encounterClassText(resource) {
+  const c = Array.isArray(resource.class) ? resource.class[0] : resource.class
+  return c?.display ?? conceptText(c) ?? c?.code
+}
+
 function normalizeEncounter(resource, ctx) {
   const reasons = [
     ...(resource.reasonCode ?? []).map(conceptText),
@@ -861,10 +902,14 @@ function normalizeEncounter(resource, ctx) {
   return {
     domain: 'encounters',
     data: {
-      title: conceptText(resource.type?.[0]) ?? resource.class?.display ?? resource.class?.code ?? 'Encounter',
-      date: resource.period?.start,
-      endDate: resource.period?.end,
-      encounterClass: resource.class?.display ?? resource.class?.code,
+      title:
+        conceptText(resource.type?.[0]) ??
+        conceptText(resource.serviceType) ??
+        encounterClassText(resource) ??
+        'Encounter',
+      date: encounterPeriod(resource)?.start,
+      endDate: encounterPeriod(resource)?.end,
+      encounterClass: encounterClassText(resource),
       status: resource.status,
       provider: joinNames((resource.participant ?? []).map((p) => p.individual), ctx),
       location: joinNames((resource.location ?? []).map((l) => l.location), ctx),

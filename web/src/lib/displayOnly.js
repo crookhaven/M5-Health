@@ -70,11 +70,17 @@ export function displayDate(value) {
 
 const DATE_KEYS = new Set(['date', 'endDate'])
 
+// FHIR requires a status, so records converted from documents that never had
+// one (C-CDA encounters, notes) arrive as "unknown". Say what that means.
+function statusText(field, value) {
+  return field === 'status' && value === 'unknown' ? 'not recorded by the source' : value
+}
+
 // Populated fields, leaving out any that just repeat the card title (some
 // sources put the same text in an encounter's type and class).
 export function displayOnlyFields(domain, data) {
   return (DISPLAY_FIELDS[domain] ?? [])
-    .map(([field, label]) => [label, DATE_KEYS.has(field) ? displayDate(data[field]) : data[field]])
+    .map(([field, label]) => [label, DATE_KEYS.has(field) ? displayDate(data[field]) : statusText(field, data[field])])
     .filter(([, value]) => value !== undefined && value !== null && value !== '' && value !== data.title)
 }
 

@@ -40,16 +40,45 @@ function wireRecord(domain, data) {
   return result
 }
 
-export function buildPiqiMessage(sourceRecords, assertions, { domains = PIQI_MESSAGE_DOMAINS } = {}) {
+// Demographics has cardinality One in the model. A record pulled from several
+// systems has several Patient resources, each often missing something, so the
+// message takes each field from the first record that has it.
+function mergedDemographics(records, assertions) {
+  const merged = {}
+  for (const record of records) {
+    for (const [field, value] of Object.entries(effectiveData(record, assertions).merged)) {
+      if (merged[field] === undefined && value !== undefined && value !== null && value !== '') merged[field] = value
+    }
+  }
+  return merged
+}
+
+// The records of one domain that go into the message, in stored order. With
+// `uniqueOnly`, exact copies (identical in every field PIQI scores) are sent
+// once, so the score reflects distinct facts rather than how often a source
+// repeated them. Gateway results are linked back with the same list.
+export function messageRecords(sourceRecords, assertions, domain, { uniqueOnly = false } = {}) {
+  const records = sourceRecords.filter((r) => r.domain === domain)
+  if (!uniqueOnly || domain === 'demographics') return records
+  const seen = new Set()
+  return records.filter((record) => {
+    const key = JSON.stringify(wireRecord(domain, effectiveData(record, assertions).merged))
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+export function buildPiqiMessage(sourceRecords, assertions, { domains = PIQI_MESSAGE_DOMAINS, uniqueOnly = false } = {}) {
   const patient = {}
   for (const domain of domains) {
     if (domain === 'coverage' || isDisplayOnly(domain)) continue
-    const records = sourceRecords.filter((r) => r.domain === domain)
+    const records = messageRecords(sourceRecords, assertions, domain, { uniqueOnly })
     if (records.length === 0) continue
-    const wired = records.map((record) => wireRecord(domain, effectiveData(record, assertions).merged))
-    // Demographics has cardinality One in the model -- a single object, not
-    // an array of one.
-    patient[domain] = domain === 'demographics' ? wired[0] : wired
+    patient[domain] =
+      domain === 'demographics'
+        ? wireRecord(domain, mergedDemographics(records, assertions))
+        : records.map((record) => wireRecord(domain, effectiveData(record, assertions).merged))
   }
 
   return {
