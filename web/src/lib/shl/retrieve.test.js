@@ -80,7 +80,9 @@ describe('retrieveShl with the U (direct file) flag', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith('https://example.org/file.jwe?recipient=Dr.%20Test')
-    expect(result.files).toEqual([{ contentType: 'application/fhir+json', plaintext: '{"resourceType":"Bundle"}' }])
+    expect(result.files).toEqual([
+      { contentType: 'application/fhir+json', plaintext: '{"resourceType":"Bundle"}', baseUrl: 'https://example.org/file.jwe' },
+    ])
     expect(result.manifest.files[0].location).toBe('https://example.org/file.jwe')
   })
 
@@ -105,7 +107,7 @@ describe('retrieveShl with the U (direct file) flag', () => {
 
     const result = await retrieveShl({ url: 'https://example.org/f', key, flag: 'U' })
     expect(result.files).toEqual([
-      { contentType: 'application/smart-health-card', plaintext: '{"verifiableCredential":[]}' },
+      { contentType: 'application/smart-health-card', plaintext: '{"verifiableCredential":[]}', baseUrl: 'https://example.org/f' },
     ])
   })
 

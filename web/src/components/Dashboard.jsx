@@ -16,6 +16,7 @@ import { effectiveData, timelinessBucketFor } from '../lib/piqi/engine'
 import { displayText } from '../lib/piqi/attributeTypes'
 import { sourceLabel } from '../lib/sourceLabels'
 import { summarizeForDisplay } from '../lib/dedup'
+import ImagingFiles from './ImagingFiles'
 import CoverageScreen from './CoverageScreen'
 
 const TIMELINESS_LABELS = {
@@ -111,6 +112,7 @@ function DisplayOnlyCard({ domain, record }) {
           </a>
         </p>
       )}
+      {domain === 'imaging' && <ImagingFiles record={record} />}
       <div className="record-source">Source: {sourceLabel(record.source)}</div>
     </div>
   )

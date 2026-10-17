@@ -7,6 +7,7 @@ import { DOCUMENT_FIELDS, SUMMARY_FIELD, displayDate, displayOnlyFields, sortByD
 import { filterBySpecialty, specialtyOf, SPECIALTIES } from '../lib/specialty'
 import { sourceLabel } from '../lib/sourceLabels'
 import SpecialtyFilter from './SpecialtyFilter'
+import ImagingFiles from './ImagingFiles'
 import DateFilter from './DateFilter'
 import { ALL_DATES, filterByDate } from '../lib/dateFilter'
 
@@ -132,6 +133,7 @@ function DocumentTable({ domain, records }) {
                     </details>
                   )}
                   {!text && doc && data[doc.omitted] && <div className="specialty-tag">{data[doc.omitted]}</div>}
+                  {domain === 'imaging' && <ImagingFiles record={record} />}
                 </td>
                 <td>{sourceLabel(record.source)}</td>
               </tr>
