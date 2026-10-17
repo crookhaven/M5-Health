@@ -111,24 +111,38 @@ export default function CoverageScreen({ record }) {
       <header className="plan-header">
         <h1>{plan.plan_name ?? 'Untitled plan'}</h1>
         <dl className="plan-meta">
-          <div>
-            <dt>Group</dt>
-            <dd>
-              {plan.group_name ?? '—'}
-              {plan.group_number ? ` (${plan.group_number})` : ''}
-            </dd>
-          </div>
+          {plan.issuer_name ? (
+            <div>
+              <dt>Insurer</dt>
+              <dd>{plan.issuer_name}</dd>
+            </div>
+          ) : (
+            <div>
+              <dt>Group</dt>
+              <dd>
+                {plan.group_name ?? '—'}
+                {plan.group_number ? ` (${plan.group_number})` : ''}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>Plan type</dt>
             <dd>
-              {plan.type ?? '—'}
+              {[plan.metal_level, plan.type].filter(Boolean).join(' ') || '—'}
               {plan.hsa_eligible ? ' · HSA-eligible' : ''}
             </dd>
           </div>
-          <div>
-            <dt>Effective date</dt>
-            <dd>{plan.effective_date ?? '—'}</dd>
-          </div>
+          {plan.effective_date || !plan.plan_year ? (
+            <div>
+              <dt>Effective date</dt>
+              <dd>{plan.effective_date ?? '—'}</dd>
+            </div>
+          ) : (
+            <div>
+              <dt>Plan year</dt>
+              <dd>{plan.plan_year}</dd>
+            </div>
+          )}
         </dl>
       </header>
 

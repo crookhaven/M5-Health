@@ -1,152 +1,268 @@
 {
-  "_note": "Sample data for prototyping M5 Whole Health's plan-benefit lookup feature. Shaped to match the fields returned by CMS's live Marketplace API (GET /plans/{plan_id}), but populated by hand from a real Blue Cross Blue Shield of Michigan employer group plan document (a BAAG, not a federal SBC). This plan is a self-funded employer group plan and will NOT be found via the CMS Marketplace API -- it has no HIOS Plan ID. Use this file only to build and test the display screen; swap in real API responses later for plans that ARE Marketplace plans.",
-  "source_document": "BCBSM Benefits-at-a-Glance (BAAG)",
-  "plan_name": "Simply Blue HSA PPO with Rx ASC",
-  "group_name": "Health Management Associates",
-  "group_number": "0070039340001",
-  "plan_suffix": "0CPQ8",
-  "effective_date": "2026-01-01",
+  "_note": "Sample coverage plan for testing M5 Whole Health's plan-benefit screen: a real, public 2026 ACA Marketplace plan as returned by the CMS Marketplace API (plan search for ZIP 48201, Wayne County, MI, for a made-up household). It is not anyone's own coverage. The API search result lists only the in-network, individual deductible and out-of-pocket maximum.",
+  "source_document": "CMS Marketplace API, 2026 plan search (ZIP 48201)",
+  "plan_id": "15560MI0350006",
+  "plan_name": "Blue Cross® Premier PPO Silver Saver HSA",
+  "issuer_name": "Blue Cross Blue Shield of Michigan Mutual Insurance Company",
+  "plan_year": 2026,
+  "metal_level": "Silver",
   "type": "PPO",
   "hsa_eligible": true,
+  "specialist_referral_required": false,
+  "links": {
+    "benefits_url": "https://www.bcbsm.com/amslibs/content/dam/public/marketplace/2026-individual/sbc/premier-silver-saver-hsa-sbc.pdf",
+    "brochure_url": "https://www.bcbsm.com/individuals/plans/medical/2026/silver/premier-ppo-saver-hsa-70/",
+    "formulary_url": "https://www.bcbsm.com/2026-select-ppo-druglist",
+    "network_url": "https://www.bcbsm.com/marketplace/ppo/"
+  },
   "deductibles": [
-    { "type": "Medical EHB Deductible", "network_tier": "In-Network", "family_cost": "Individual", "amount": 2000 },
-    { "type": "Medical EHB Deductible", "network_tier": "In-Network", "family_cost": "Family", "amount": 4000 },
-    { "type": "Medical EHB Deductible", "network_tier": "Out-of-Network", "family_cost": "Individual", "amount": 4000 },
-    { "type": "Medical EHB Deductible", "network_tier": "Out-of-Network", "family_cost": "Family", "amount": 8000 }
+    {
+      "type": "Combined Medical and Drug EHB Deductible",
+      "amount": 3900,
+      "csr": "Exchange variant (no CSR)",
+      "network_tier": "In-Network",
+      "family_cost": "Individual",
+      "individual": true,
+      "family": false,
+      "display_string": ""
+    }
   ],
   "moops": [
-    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "In-Network", "family_cost": "Individual", "amount": 3000 },
-    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "In-Network", "family_cost": "Family", "amount": 6000 },
-    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "Out-of-Network", "family_cost": "Individual", "amount": 6000 },
-    { "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)", "network_tier": "Out-of-Network", "family_cost": "Family", "amount": 12000 }
+    {
+      "type": "Maximum Out of Pocket for Medical and Drug EHB Benefits (Total)",
+      "amount": 7700,
+      "csr": "Exchange variant (no CSR)",
+      "network_tier": "In-Network",
+      "family_cost": "Individual",
+      "individual": true,
+      "family": false,
+      "display_string": ""
+    }
   ],
   "benefits": [
     {
-      "name": "Preventive Care Services",
+      "type": "PRIMARY_CARE_VISIT_TO_TREAT_AN_INJURY_OR_ILLNESS",
+      "name": "Primary Care Visit to Treat an Injury or Illness",
       "covered": true,
-      "explanation": "Health maintenance exam, gynecological exam, immunizations, screenings, well-baby/well-child visits",
       "cost_sharings": [
-        { "network_tier": "In-Network", "copay_amount": 0, "coinsurance_rate": 0, "display_string": "100%, no deductible" },
-        { "network_tier": "Out-of-Network", "display_string": "Not covered" }
-      ]
+        {
+          "coinsurance_rate": 0,
+          "coinsurance_options": "Not Applicable",
+          "copay_amount": 30,
+          "copay_options": "Copay after deductible",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$30 Copay after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 0.4,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "40% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     },
     {
-      "name": "Primary Care / Office Visit",
+      "type": "MENTAL_BEHAVIORAL_HEALTH_INPATIENT_SERVICES",
+      "name": "Mental/Behavioral Health Inpatient Services",
       "covered": true,
-      "explanation": "Must be medically necessary",
       "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
-      ]
+        {
+          "coinsurance_rate": 0.2,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "20% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 0.4,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "40% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     },
     {
-      "name": "Urgent Care",
+      "type": "GENERIC_DRUGS",
+      "name": "Generic Drugs",
       "covered": true,
       "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
-      ]
+        {
+          "coinsurance_rate": 0,
+          "coinsurance_options": "Not Applicable",
+          "copay_amount": 15,
+          "copay_options": "Copay after deductible",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$15 Copay after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 1,
+          "coinsurance_options": "",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "Not Covered",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     },
     {
-      "name": "Emergency Room",
+      "type": "SPECIALIST_VISIT",
+      "name": "Specialist Visit",
       "covered": true,
       "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "display_string": "100% after in-network deductible (same as in-network)" }
-      ]
+        {
+          "coinsurance_rate": 0,
+          "coinsurance_options": "Not Applicable",
+          "copay_amount": 50,
+          "copay_options": "Copay after deductible",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$50 Copay after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 0.4,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "40% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     },
     {
-      "name": "Ambulance",
+      "type": "URGENT_CARE_CENTERS_OR_FACILITIES",
+      "name": "Urgent Care Centers Or Facilities",
       "covered": true,
-      "explanation": "Must be medically necessary",
       "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "display_string": "100% after in-network deductible (same as in-network)" }
-      ]
+        {
+          "coinsurance_rate": 0,
+          "coinsurance_options": "Not Applicable",
+          "copay_amount": 75,
+          "copay_options": "Copay after deductible",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$75 Copay after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 0.4,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "40% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     },
     {
-      "name": "Hospital Inpatient Care",
+      "type": "EMERGENCY_ROOM_SERVICES",
+      "name": "Emergency Room Services",
       "covered": true,
-      "explanation": "Semiprivate room, inpatient physician care, general nursing care; unlimited days",
       "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
-      ]
+        {
+          "coinsurance_rate": 0.2,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 250,
+          "copay_options": "Copay after deductible",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$250 Copay after deductible/20% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 0.2,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 250,
+          "copay_options": "Copay after deductible",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$250 Copay after deductible/20% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     },
     {
-      "name": "Outpatient Surgery",
+      "type": "MENTAL_BEHAVIORAL_HEALTH_OUTPATIENT_SERVICES",
+      "name": "Mental/Behavioral Health Outpatient Services",
       "covered": true,
       "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
-      ]
-    },
-    {
-      "name": "Diagnostic Tests / X-rays / Lab",
-      "covered": true,
-      "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
-      ]
-    },
-    {
-      "name": "Outpatient Mental Health / Substance Use Disorder",
-      "covered": true,
-      "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible" }
-      ]
-    },
-    {
-      "name": "Outpatient Physical/Speech/Occupational Therapy",
-      "covered": true,
-      "has_limits": true,
-      "limit_unit": "visit",
-      "limit_quantity": 30,
-      "explanation": "Combined 30-visit maximum per member per calendar year (rehabilitation)",
-      "cost_sharings": [
-        { "network_tier": "In-Network", "display_string": "100% after in-network deductible" },
-        { "network_tier": "Out-of-Network", "coinsurance_rate": 0.20, "display_string": "80% after out-of-network deductible; nonparticipating facilities not covered" }
-      ]
-    },
-    {
-      "name": "Generic Drugs (1-30 day, retail)",
-      "covered": true,
-      "cost_sharings": [
-        { "network_tier": "In-Network", "copay_amount": 10, "display_string": "After deductible, $10 copay" },
-        { "network_tier": "Out-of-Network", "copay_amount": 10, "coinsurance_rate": 0.20, "display_string": "After deductible, $10 copay plus 20%" }
-      ]
-    },
-    {
-      "name": "Preferred Brand Drugs (1-30 day, retail)",
-      "covered": true,
-      "cost_sharings": [
-        { "network_tier": "In-Network", "copay_amount": 40, "display_string": "After deductible, $40 copay" },
-        { "network_tier": "Out-of-Network", "copay_amount": 40, "coinsurance_rate": 0.20, "display_string": "After deductible, $40 copay plus 20%" }
-      ]
-    },
-    {
-      "name": "Nonpreferred Brand Drugs (1-30 day, retail)",
-      "covered": true,
-      "cost_sharings": [
-        { "network_tier": "In-Network", "copay_amount": 80, "display_string": "After deductible, $80 copay" },
-        { "network_tier": "Out-of-Network", "copay_amount": 80, "coinsurance_rate": 0.20, "display_string": "After deductible, $80 copay plus 20%" }
-      ]
-    },
-    {
-      "name": "Specialty Drugs (generic/preferred)",
-      "covered": true,
-      "explanation": "Only through Exclusive Pharmacy Network for Specialty Drugs; 30-day supply max",
-      "cost_sharings": [
-        { "network_tier": "In-Network", "coinsurance_rate": 0.15, "display_string": "After deductible, 15% of approved amount, max $150" }
-      ]
-    },
-    {
-      "name": "Specialty Drugs (nonpreferred)",
-      "covered": true,
-      "cost_sharings": [
-        { "network_tier": "In-Network", "coinsurance_rate": 0.25, "display_string": "After deductible, 25% of approved amount, max $300" }
-      ]
+        {
+          "coinsurance_rate": 0,
+          "coinsurance_options": "Not Applicable",
+          "copay_amount": 30,
+          "copay_options": "Copay after deductible",
+          "network_tier": "In-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "$30 Copay after deductible",
+          "benefit_before_deductible": "Not BBD"
+        },
+        {
+          "coinsurance_rate": 0.4,
+          "coinsurance_options": "Coinsurance after deductible",
+          "copay_amount": 0,
+          "copay_options": "Not Applicable",
+          "network_tier": "Out-of-Network",
+          "csr": "Exchange variant (no CSR)",
+          "display_string": "40% Coinsurance after deductible",
+          "benefit_before_deductible": "Not BBD"
+        }
+      ],
+      "explanation": "",
+      "exclusions": "",
+      "has_limits": false,
+      "limit_unit": "",
+      "limit_quantity": 0
     }
   ]
 }

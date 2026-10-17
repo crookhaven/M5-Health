@@ -88,9 +88,9 @@ describe('Dashboard', () => {
   })
 
   it('renders a coverage record via the coverage screen', () => {
-    const records = [record('c1', 'coverage', { plan_name: 'Simply Blue HSA PPO' })]
+    const records = [record('c1', 'coverage', { plan_name: 'Example HSA PPO' })]
     render(<Dashboard sourceRecords={records} assertions={[]} />)
-    expect(screen.getByText('Simply Blue HSA PPO')).toBeInTheDocument()
+    expect(screen.getByText('Example HSA PPO')).toBeInTheDocument()
   })
 
   it('shows populated optional and extra fields, without repeating a value', () => {
