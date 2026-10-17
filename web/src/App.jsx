@@ -13,6 +13,8 @@ import FamilyOverview from './components/FamilyOverview'
 import ComparePlans from './components/ComparePlans'
 import SharePanel from './components/SharePanel'
 import ConnectathonPanel from './components/ConnectathonPanel'
+import RtbPanel from './components/RtbPanel'
+import { MEDICAL_RTB, PHARMACY_RTB } from './lib/rtb/useCases'
 import { DATASETS, DATASET_ORDER } from './lib/datasets'
 import './App.css'
 
@@ -24,6 +26,8 @@ const TABS = [
   { key: 'compare', label: 'Compare plans' },
   { key: 'share', label: 'Share & Export' },
   { key: 'connectathon', label: 'Connectathon' },
+  { key: 'rtb-medical', label: 'Medical RTB' },
+  { key: 'rtb-pharmacy', label: 'Pharmacy RTB' },
 ]
 
 const DATA_VIEWS = [
@@ -176,6 +180,8 @@ function AppContent() {
           <SharePanel sourceRecords={sourceRecords} />
         )}
         {tab === 'connectathon' && <ConnectathonPanel />}
+        {tab === 'rtb-medical' && <RtbPanel program={MEDICAL_RTB} />}
+        {tab === 'rtb-pharmacy' && <RtbPanel program={PHARMACY_RTB} />}
       </main>
     </div>
   )
