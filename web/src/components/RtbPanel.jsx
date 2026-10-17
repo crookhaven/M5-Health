@@ -1,4 +1,5 @@
 import { STATUS } from '../lib/rtb/useCases'
+import PlanBenefits from './PlanBenefits'
 
 // One Real-Time Benefits MVP (medical or pharmacy): the event's use cases, how
 // required each item is, and where the app stands on it today.
@@ -15,6 +16,7 @@ export default function RtbPanel({ program }) {
         </ul>
         <p className="section-help">Source: {program.source}</p>
       </section>
+      {program.key === 'medical' && <PlanBenefits />}
       {program.useCases.map((uc) => (
         <section className="import-section" key={uc.title}>
           <h2>{uc.title}</h2>
