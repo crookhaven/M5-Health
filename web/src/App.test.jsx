@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
@@ -63,14 +63,18 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add patient' }))
     await user.type(screen.getByLabelText(/new patient name/i), 'Sam')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    const order = () => screen.getAllByRole('option').map((o) => o.textContent)
+    // Only the patient list's options; the Import screen has other dropdowns.
+    const order = () =>
+      within(screen.getByRole('region', { name: 'Patient' }))
+        .getAllByRole('option')
+        .map((o) => o.textContent)
     expect(order()).toEqual(['Patient 1', 'Sam'])
     expect(screen.getByRole('button', { name: 'Move Sam down' })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Move Sam up' }))
     expect(order()).toEqual(['Sam', 'Patient 1'])
     expect(screen.getByRole('button', { name: 'Move Sam up' })).toBeDisabled()
-    expect(screen.getByRole('combobox')).toHaveDisplayValue('Sam')
+    expect(within(screen.getByRole('region', { name: 'Patient' })).getByRole('combobox')).toHaveDisplayValue('Sam')
   })
 
   it('keeps each patient records separate', async () => {
