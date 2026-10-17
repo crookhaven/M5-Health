@@ -101,8 +101,11 @@ export function estimateYear(plan, usage) {
 }
 
 // Which of the patient's medicines a plan covers, from the saved drug check.
+// A medicine may carry several RxCUIs (brand and generic, two listings of the
+// same inhaler); the plan covers it if it covers any of them.
 export function medicationCoverage(plan, medications, drugCoverage) {
-  const withCode = medications.filter((m) => m.rxcui)
+  const codesOf = (m) => m.rxcuis ?? (m.rxcui ? [m.rxcui] : [])
+  const withCode = medications.filter((m) => codesOf(m).length)
   const perPlan = drugCoverage?.[plan.id]
   if (!perPlan || withCode.length === 0) {
     return { checked: false, covered: 0, total: withCode.length, missing: [], unknown: [] }
@@ -111,9 +114,9 @@ export function medicationCoverage(plan, medications, drugCoverage) {
   const unknown = []
   let covered = 0
   for (const m of withCode) {
-    const status = perPlan[m.rxcui]
-    if (status === 'covered') covered++
-    else if (status === 'not-covered') missing.push(m.name)
+    const statuses = codesOf(m).map((r) => perPlan[r])
+    if (statuses.includes('covered')) covered++
+    else if (statuses.length && statuses.every((st) => st === 'not-covered')) missing.push(m.name)
     else unknown.push(m.name)
   }
   return { checked: true, covered, total: withCode.length, missing, unknown }

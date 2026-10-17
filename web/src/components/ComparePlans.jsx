@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import sampleFile from '../data/sample_marketplace_plans.json'
-import { COMPARE_BENEFITS, SBC_EXAMPLES, parsePlansFile } from '../lib/marketplace/normalize'
+import { COMPARE_BENEFITS, SBC_EXAMPLES, parseDrugCoverage, parsePlansFile } from '../lib/marketplace/normalize'
 import {
   DEFAULT_USAGE,
   SERVICES,
@@ -14,6 +14,7 @@ import { summarizePatient } from '../lib/marketplace/patientSummary'
 import { useWorkspace } from '../state/WorkspaceContext'
 import PlanAdvisor from './PlanAdvisor'
 import { MARKETPLACE_PLANS_URL, fetchFromGitHub } from '../lib/openSyntheticPatients'
+import { checkCoverageLive, fetchIngredients, groupMedicines, uncheckedRxcuis } from '../lib/marketplace/medicines'
 
 const NOT_LISTED = 'Not listed'
 const DEFAULT_SHOWN = 4
@@ -84,7 +85,20 @@ export default function ComparePlans() {
   const [copiedLine, setCopiedLine] = useState(false)
 
   const summary = useMemo(() => summarizePatient(sourceRecords, assertions), [sourceRecords, assertions])
-  const usage = { ...DEFAULT_USAGE, genericDrugs: estimatedFills(summary.medications), ...edits }
+  // Group the same medicine recorded under different names, using RxNorm
+  // ingredients when RxNav answers, and leave vaccines out.
+  const [ingredients, setIngredients] = useState({})
+  const medRxcuis = summary.medications.map((m) => m.rxcui).filter(Boolean).join(',')
+  useEffect(() => {
+    if (!medRxcuis) return
+    let live = true
+    fetchIngredients(medRxcuis.split(',')).then((found) => live && setIngredients(found))
+    return () => {
+      live = false
+    }
+  }, [medRxcuis])
+  const medicines = useMemo(() => groupMedicines(summary.medications, ingredients), [summary, ingredients])
+  const usage = { ...DEFAULT_USAGE, genericDrugs: estimatedFills(medicines), ...edits }
   const budget = budgetText.trim() === '' || Number.isNaN(Number(budgetText)) ? null : Number(budgetText)
 
   const usageKey = JSON.stringify(usage)
@@ -92,11 +106,11 @@ export default function ComparePlans() {
     const base = data.plans.map((plan) => ({
       plan,
       est: estimateYear(plan, usage),
-      med: medicationCoverage(plan, summary.medications, data.drugCoverage),
+      med: medicationCoverage(plan, medicines, data.drugCoverage),
     }))
     const scores = coverageScores(base, base.map((r) => r.med))
     return base.map((r, i) => ({ ...r, score: scores[i] }))
-  }, [data, summary, usageKey])
+  }, [data, medicines, usageKey])
 
   const metalLevels = [...new Set(data.plans.map((p) => p.metalLevel).filter(Boolean))].sort(
     (a, b) => (METAL_ORDER.indexOf(a) + 1 || 99) - (METAL_ORDER.indexOf(b) + 1 || 99),
@@ -148,8 +162,33 @@ export default function ComparePlans() {
   const toggleMetal = (m) =>
     setMetals((current) => (current.includes(m) ? current.filter((x) => x !== m) : [...current, m]))
 
-  const rxcuis = [...new Set(summary.medications.filter((m) => m.rxcui).map((m) => m.rxcui))]
-  const drugLine = `$rxcuis = ${rxcuis.map((c) => `'${c}'`).join(',')}`
+  const rxcuis = [...new Set(medicines.flatMap((m) => m.rxcuis))]
+  // The medicines the loaded file has no answer for (all of them if it has no drug check).
+  const unchecked = data.drugCoverage ? uncheckedRxcuis(medicines, data.drugCoverage) : rxcuis
+  const drugLine = `$rxcuis = ${unchecked.map((c) => `'${c}'`).join(',')}`
+  const [apiKey, setApiKey] = useState('')
+  const [planYear, setPlanYear] = useState(String(new Date().getFullYear()))
+  const [checking, setChecking] = useState(false)
+  const [checkError, setCheckError] = useState(null)
+
+  async function checkNow() {
+    setChecking(true)
+    setCheckError(null)
+    try {
+      const rows = await checkCoverageLive({ rxcuis: unchecked, planIds: data.plans.map((p) => p.id), year: planYear, apiKey: apiKey.trim() })
+      const found = parseDrugCoverage(rows) ?? {}
+      setData((d) => {
+        const merged = { ...(d.drugCoverage ?? {}) }
+        for (const [planId, statuses] of Object.entries(found)) merged[planId] = { ...(merged[planId] ?? {}), ...statuses }
+        return { ...d, drugCoverage: merged }
+      })
+      setApiKey('')
+    } catch (err) {
+      setCheckError(err.message)
+    } finally {
+      setChecking(false)
+    }
+  }
   async function copyLine() {
     try {
       await navigator.clipboard.writeText(drugLine)
@@ -293,15 +332,53 @@ export default function ComparePlans() {
         </p>
       </fieldset>
 
-      {rxcuis.length > 0 && !data.drugCoverage && (
-        <p className="local-note">
-          To check whether plans cover your medicines, paste this line into PowerShell just before
-          the fetch script, then load the new file:{' '}
-          <code>{drugLine}</code>{' '}
-          <button type="button" onClick={copyLine}>
-            {copiedLine ? 'Copied' : 'Copy line'}
-          </button>
-        </p>
+      {medicines.length > 0 && (
+        <details className="plan-picker" open={unchecked.length > 0}>
+          <summary>
+            Your medicines ({medicines.length}
+            {summary.medications.length > medicines.length ? `, from ${summary.medications.length} entries` : ''})
+          </summary>
+          <ul>
+            {medicines.map((m) => (
+              <li key={m.key}>
+                {m.name}
+                {m.names.length > 1 ? ` (also recorded as ${[...new Set(m.names.slice(1))].join('; ')})` : ''}
+                {m.rxcuis.length ? '' : ' (no RxNorm code, so it can\'t be checked)'}
+              </li>
+            ))}
+          </ul>
+          {summary.medications.some((m) => !medicines.some((g) => g.names.includes(m.name))) && (
+            <p className="local-note">Vaccines are left out; plans usually cover them as a medical benefit.</p>
+          )}
+          {unchecked.length > 0 && !isSample && (
+            <>
+              <p>
+                {unchecked.length} of these {unchecked.length === 1 ? "hasn't" : "haven't"} been checked against these plans.
+                Check now with your CMS Marketplace API key (used for this check only, not saved):
+              </p>
+              <div className="button-row">
+                <label>
+                  API key <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
+                </label>
+                <label>
+                  Plan year{' '}
+                  <input type="number" className="usage-input" value={planYear} onChange={(e) => setPlanYear(e.target.value)} />
+                </label>
+                <button type="button" onClick={checkNow} disabled={checking || !apiKey.trim()}>
+                  {checking ? 'Checking…' : 'Check my medicines'}
+                </button>
+              </div>
+              {checkError && <p className="error-text">{checkError}</p>}
+              <p className="local-note">
+                Or paste this line into PowerShell just before the fetch script, then load the new file:{' '}
+                <code>{drugLine}</code>{' '}
+                <button type="button" onClick={copyLine}>
+                  {copiedLine ? 'Copied' : 'Copy line'}
+                </button>
+              </p>
+            </>
+          )}
+        </details>
       )}
 
       {(picks.lowest || picks.bestCoverage) && (
