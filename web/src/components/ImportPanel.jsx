@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useWorkspace } from '../state/WorkspaceContext'
 import { createSourceRecord, validateCoveragePlan } from '../lib/sourceRecord'
 import { normalizeFhirBundle } from '../lib/fhir/normalize'
+import SmartConnect from './SmartConnect'
 import { CATALOG_URL, OSP_REPO, bundleToRecords, catalogPatients, fetchFromGitHub } from '../lib/openSyntheticPatients'
 import { parseShlUri, requiresPasscode } from '../lib/shl/parse'
 import { isPackageOnlyLink } from '../lib/shl/packageFile'
@@ -588,10 +589,12 @@ export default function ImportPanel() {
   return (
     <div className="import-panel">
       <p className="local-note">
-        <strong>Demo only.</strong> Use synthetic (made-up) data. Do not import real health
-        information (PHI) here. A PIQI score comes from the PIQI Gateway, an outside service, and a
-        summary you paste into Claude also leaves this app.
+        <strong>Your records stay in this browser.</strong> M5 has no server and doesn&apos;t send your data
+        anywhere unless you choose to: scoring with the PIQI Gateway (an outside service), sharing a link or
+        PDF, or pasting a summary into Claude. See the <a href="terms.html">terms</a> and{' '}
+        <a href="privacy.html">privacy policy</a>.
       </p>
+      <SmartConnect />
       <SampleImport />
       <OpenSyntheticPatientsImport />
       <CoverageImport />

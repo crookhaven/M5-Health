@@ -5,6 +5,7 @@ export const SOURCE_TYPE_LABELS = {
   'pdf-upload': 'PDF import',
   'fhir-bundle-upload': 'FHIR bundle upload',
   'open-synthetic-patients': 'open-synthetic-patients (GitHub)',
+  'smart-on-fhir': 'Health system (FHIR)',
   manual: 'Manually entered',
 }
 
